@@ -432,71 +432,80 @@
   "Viper":{m:100,g:200,t:29,dps:0,dpsMax:0,hp:150,sh:0,armor:1,sup:3,tags:["support"],flags:{},micro:5,attrs:["armored","bio","air"],pref:[]},
   "Overseer":{m:50,g:100,t:12,dps:0,dpsMax:0,hp:200,sh:0,armor:1,sup:1,tags:["air","support"],flags:{detector:true},micro:2,attrs:["light","bio","air"],pref:[]} };
 
-  /* ===== Upgrades metadata omitted here to save space: keep yours as-is (unchanged) ===== */
-const T_UP=[
-  {key:"bio_weap", label:"Infantry Weapons (0–3)", cat:"weapon", applies:u=>u.tags.includes("bio")},
-  {key:"bio_arm",  label:"Infantry Armor (0–3)",   cat:"armor",  applies:u=>u.tags.includes("bio")},
-  {key:"veh_weap", label:"Vehicle Weapons (0–3)",  cat:"weapon", applies:u=>u.tags.includes("mech")},
-  {key:"veh_arm",  label:"Vehicle Plating (0–3)",  cat:"armor",  applies:u=>u.tags.includes("mech")},
-  {key:"air_both", label:"Ship Weapons+Plating (0–3)", cat:"both", applies:u=>u.tags.includes("air")},
-  // Tech lab / reactor style techs
-  {key:"stim", label:"Stim (Marine/Marauder) — atk speed", cat:"toggle", mult:1.5, applies:u=>u===T["Marine"] || u===T["Marauder"], cost:{m:100,g:100}},
-  {key:"combat",   label:"Combat Shield (Marine) +10 HP", cat:"toggle", applies:u=>u===T["Marine"], hp:+10, cost:{m:100,g:100}},
-  {key:"shells",   label:"Concussive Shells (Marauder) — utility", cat:"toggle", applies:u=>u===T["Marauder"], util:+0.05, cost:{m:50,g:50}},
-  {key:"blueflame",label:"Infernal Pre-Igniter (Hellion/bat) — burst↑", cat:"toggle", applies:u=>u===T["Hellion"]||u===T["Hellbat"], mult:1.15, cost:{m:150,g:150}},
-  {key:"drill",    label:"Drilling Claws (Mine) — utility", cat:"toggle", applies:u=>u===T["Widow Mine"], util:+0.05, cost:{m:75,g:75}},
-  {key:"magfield", label:"Mag-Field Accelerator (Cyclone) — dmg↑", cat:"toggle", applies:u=>u===T["Cyclone"], mult:1.15, cost:{m:150,g:150}},
-  {key:"medreact", label:"Medivac Energy Upgrade — heals↑", cat:"toggle", applies:u=>u===T["Medivac"], healMult:1.25, cost:{m:150,g:150}},
-    // Banshee Cloak (tech)
-    {key:"bcloak",  label:"Cloaking Field (Banshee) — utility", cat:"toggle",
-    applies:u=>u===T["Banshee"], util:+0.04, cost:{m:100,g:100}},
+  /* ===== Terran ===== */
+  const T_UP = [
+    // Levelled upgrades
+    { key:"infW",  cat:"weapon", label:"Infantry Weapons", applies:u => u.tags?.includes("bio") },
+    { key:"infA",  cat:"armor",  label:"Infantry Armor",   applies:u => u.tags?.includes("bio") },
 
-    // Hyperflight Rotors (Banshee speed)
-    {key:"hyper",   label:"Hyperflight Rotors (Banshee) — utility", cat:"toggle",
-    applies:u=>u===T["Banshee"], util:+0.03, cost:{m:150,g:150}},
+    { key:"vehW",  cat:"weapon", label:"Vehicle Weapons",  applies:u => u.attrs?.includes("mech") && !u.attrs?.includes("air") },
+    { key:"vehA",  cat:"armor",  label:"Vehicle Plating",  applies:u => u.attrs?.includes("mech") && !u.attrs?.includes("air") },
 
-    // Advanced Ballistics (Liberator range)
-    {key:"adball",  label:"Advanced Ballistics (Liberator) — utility", cat:"toggle",
-    applies:u=>u===T["Liberator"], util:+0.05, cost:{m:150,g:150}},
+    { key:"shipW", cat:"weapon", label:"Ship Weapons",     applies:u => u.attrs?.includes("air") },
+    { key:"shipA", cat:"armor",  label:"Ship Plating",     applies:u => u.attrs?.includes("air") },
 
-    // Smart Servos (faster transforms)
-    {key:"servos",  label:"Smart Servos (Thor/Viking) — utility", cat:"toggle",
-    applies:u=>u===T["Thor"] || u===T["Viking"], util:+0.02, cost:{m:100,g:100}},
+    // Key tech / toggles
+    { key:"stim",        cat:"toggle", label:"Stimpack (Marine/Marauder)", applies:u => u===T["Marine"]||u===T["Marauder"], mult:1.5, cost:{m:100,g:100}, util:0.05 },
+    { key:"cShield",     cat:"toggle", label:"Combat Shield (Marine +10 HP)", applies:u => u===T["Marine"], hp:10, cost:{m:100,g:100} },
+    { key:"concussive",  cat:"toggle", label:"Concussive Shells (Marauder slow)", applies:u => u===T["Marauder"], util:0.08, cost:{m:50,g:50} },
 
-    // Yamato Cannon (Battlecruiser) — model as stronger burst
-    {key:"yamato",  label:"Yamato Cannon (Battlecruiser) — burst↑", cat:"toggle",
-    applies:u=>u===T["Battlecruiser"], mult:1.10, cost:{m:150,g:150}},
+    { key:"blueFlame",   cat:"toggle", label:"Infernal Pre-Igniter (Hellion/Hellbat)", applies:u => u===T["Hellion"]||u===T["Hellbat"], mult:1.2, cost:{m:100,g:100} },
+    { key:"drillClaws",  cat:"toggle", label:"Drilling Claws (Widow Mine)", applies:u => u===T["Widow Mine"], util:0.06, cost:{m:75,g:75} },
+    { key:"magField",    cat:"toggle", label:"Mag-Field Accelerator (Cyclone)", applies:u => u===T["Cyclone"], mult:1.2, cost:{m:150,g:150} },
+    { key:"advBall",     cat:"toggle", label:"Advanced Ballistics (Liberator range)", applies:u => u===T["Liberator"], util:0.05, cost:{m:150,g:150} },
+    { key:"corvid",      cat:"toggle", label:"Corvid Reactor (Raven energy)", applies:u => u===T["Raven"], util:0.08, cost:{m:150,g:150} },
+    { key:"hyperflight", cat:"toggle", label:"Hyperflight Rotors (Banshee speed)", applies:u => u===T["Banshee"], util:0.06, cost:{m:150,g:150} }
+  ];
 
-];
+  /* ===== Protoss ===== */
+  const P_UP = [
+    // Levelled upgrades
+    { key:"gW",  cat:"weapon", label:"Ground Weapons", applies:u => !u.attrs?.includes("air") },
+    { key:"gA",  cat:"armor",  label:"Ground Armor",   applies:u => !u.attrs?.includes("air") },
+    { key:"aW",  cat:"weapon", label:"Air Weapons",    applies:u =>  u.attrs?.includes("air") },
+    { key:"aA",  cat:"armor",  label:"Air Armor",      applies:u =>  u.attrs?.includes("air") },
+    { key:"sh",  cat:"armor",  label:"Shields",        applies:u => true },
 
-const P_UP=[
-  {key:"ground_weap",label:"Ground Weapons (0–3)", cat:"weapon", applies:u=>u.tags.includes("ground")},
-  {key:"ground_arm", label:"Ground Armor (0–3)",   cat:"armor",  applies:u=>u.tags.includes("ground")},
-  {key:"shields",    label:"Shields (0–3)",        cat:"armor",  applies:u=>true}, // simplified +armor
-  {key:"air_weap",   label:"Air Weapons (0–3)",    cat:"weapon", applies:u=>u.tags.includes("air")},
-  {key:"air_arm",    label:"Air Armor (0–3)",      cat:"armor",  applies:u=>u.tags.includes("air")},
-  // Techs
-  {key:"glaives",    label:"Resonating Glaives (Adept) — atk rate", cat:"toggle", applies:u=>u===P["Adept"], mult:1.45, cost:{m:100,g:100}},
-  {key:"charge",     label:"Charge (Zealot) — impact dmg",           cat:"toggle", applies:u=>u===P["Zealot"], mult:1.10, cost:{m:100,g:100}},
-  {key:"blink",      label:"Blink (Stalker) — utility",              cat:"toggle", applies:u=>u===P["Stalker"], util:+0.05, cost:{m:150,g:150}},
-];
+    // Key tech / toggles
+    { key:"charge",     cat:"toggle", label:"Charge (Zealot)", applies:u => u===P["Zealot"], mult:1.05, util:0.08, cost:{m:200,g:200} },
+    { key:"blink",      cat:"toggle", label:"Blink (Stalker)", applies:u => u===P["Stalker"], util:0.08, cost:{m:100,g:100} },
+    { key:"resGlaives", cat:"toggle", label:"Resonating Glaives (Adept attack speed)", applies:u => u===P["Adept"], mult:1.45, cost:{m:150,g:150} },
+    { key:"thermal",    cat:"toggle", label:"Extended Thermal Lance (Colossus range)", applies:u => u===P["Colossus"], util:0.06, cost:{m:150,g:150} },
+    { key:"anion",      cat:"toggle", label:"Anion Pulse-Crystals (Phoenix range)", applies:u => u===P["Phoenix"], util:0.05, cost:{m:150,g:150} },
+    { key:"storm",      cat:"toggle", label:"Psionic Storm (High Templar)", applies:u => u===P["High Templar"], util:0.12, cost:{m:150,g:150} },
+    { key:"obsSpeed",   cat:"toggle", label:"Gravitic Boosters (Observer speed)", applies:u => u===P["Observer"], util:0.05, cost:{m:100,g:100} }
+  ];
 
-const Z_UP=[
-  {key:"melee_weap",  label:"Melee Attacks (0–3)",  cat:"weapon", applies:u=>u.tags.includes("melee") || u===Z["Brood Lord"]}, // broodlings
-  {key:"missile_weap",label:"Missile Attacks (0–3)",cat:"weapon", applies:u=>u.tags.includes("ranged")},
-  {key:"air_weap",    label:"Air Attacks (0–3)",    cat:"weapon", applies:u=>u.tags.includes("air")},
-  {key:"melee_arm",   label:"Melee Carapace (0–3)", cat:"armor",  applies:u=>u.tags.includes("melee")},
-  {key:"missile_arm", label:"Missile Carapace (0–3)",cat:"armor", applies:u=>u.tags.includes("ranged")},
-  {key:"air_arm",     label:"Air Carapace (0–3)",   cat:"armor",  applies:u=>u.tags.includes("air")},
-  // Techs (Infestation/Lair/Hive lines etc.)
-  {key:"adrenal",     label:"Adrenal Glands (Ling) — atk rate",      cat:"toggle", applies:u=>u===Z["Zergling"], mult:1.40, cost:{m:200,g:200}},
-  {key:"metabolic",   label:"Metabolic Boost (Ling) — utility",       cat:"toggle", applies:u=>u===Z["Zergling"], util:+0.03, cost:{m:100,g:100}},
-  {key:"hooks",       label:"Centrifugal Hooks (Bane) +5 HP",         cat:"toggle", applies:u=>u===Z["Baneling"], hp:+5, cost:{m:150,g:150}},
-  {key:"tunneling",   label:"Tunneling Claws (Roach) — utility",      cat:"toggle", applies:u=>u===Z["Roach"], util:+0.04, cost:{m:100,g:100}},
-  {key:"grooved",     label:"Grooved Spines (Hydra range)",           cat:"toggle", applies:u=>u===Z["Hydralisk"], util:+0.03, cost:{m:150,g:150}},
-  {key:"muscular",    label:"Muscular Augments (Hydra speed)",        cat:"toggle", applies:u=>u===Z["Hydralisk"], util:+0.03, cost:{m:100,g:100}},
-  {key:"chitin",      label:"Chitinous Plating (Ultra) +2 armor",     cat:"toggle", applies:u=>u===Z["Ultralisk"], armor:+2, cost:{m:150,g:150}},
-];
+  /* ===== Zerg ===== */
+  const Z_UP = [
+    // Levelled upgrades
+    { key:"melee",  cat:"weapon", label:"Melee Attacks",  applies:u => u===Z["Zergling"]||u===Z["Baneling"]||u===Z["Ultralisk"]||u===Z["Brood Lord"] },
+    { key:"missile",cat:"weapon", label:"Missile Attacks",applies:u => u===Z["Roach"]||u===Z["Ravager"]||u===Z["Hydralisk"]||u===Z["Lurker"]||u===Z["Swarm Host"] },
+    { key:"flyW",   cat:"weapon", label:"Flyer Attacks",  applies:u => u.attrs?.includes("air") },
+
+    { key:"gCar",   cat:"armor",  label:"Ground Carapace",applies:u => !u.attrs?.includes("air") },
+    { key:"fCar",   cat:"armor",  label:"Flyer Carapace", applies:u =>  u.attrs?.includes("air") },
+
+    // Key tech / toggles
+    { key:"metabolic", cat:"toggle", label:"Metabolic Boost (Zergling speed)", applies:u => u===Z["Zergling"], util:0.08, cost:{m:100,g:100} },
+    { key:"adrenal",   cat:"toggle", label:"Adrenal Glands (Zergling attack speed)", applies:u => u===Z["Zergling"], mult:1.40, cost:{m:200,g:200} },
+    { key:"hooks",     cat:"toggle", label:"Centrifugal Hooks (Baneling speed)", applies:u => u===Z["Baneling"], util:0.08, cost:{m:100,g:100} },
+
+    { key:"glial",     cat:"toggle", label:"Glial Reconstitution (Roach speed)", applies:u => u===Z["Roach"], util:0.06, cost:{m:100,g:100} },
+    { key:"tunnel",    cat:"toggle", label:"Tunneling Claws (Roach burrow move/regen)", applies:u => u===Z["Roach"], util:0.05, cost:{m:100,g:100} },
+
+    { key:"grooved",   cat:"toggle", label:"Grooved Spines (Hydra range)", applies:u => u===Z["Hydralisk"], util:0.05, cost:{m:100,g:100} },
+    { key:"muscular",  cat:"toggle", label:"Muscular Augments (Hydra speed)", applies:u => u===Z["Hydralisk"], util:0.06, cost:{m:100,g:100} },
+
+    { key:"seismic",   cat:"toggle", label:"Seismic Spines (Lurker range)", applies:u => u===Z["Lurker"], util:0.06, cost:{m:150,g:150} },
+
+    { key:"pathogen",  cat:"toggle", label:"Pathogen Glands (Infestor energy)", applies:u => u===Z["Infestor"], util:0.10, cost:{m:150,g:150} },
+    { key:"neural",    cat:"toggle", label:"Neural Parasite (Infestor)", applies:u => u===Z["Infestor"], util:0.10, cost:{m:100,g:100} },
+
+    { key:"chitin",    cat:"toggle", label:"Chitinous Plating (Ultralisk +2 armor)", applies:u => u===Z["Ultralisk"], armor:2, cost:{m:150,g:150} },
+    { key:"anabolic",  cat:"toggle", label:"Anabolic Synthesis (Ultralisk off-creep speed)", applies:u => u===Z["Ultralisk"], util:0.05, cost:{m:150,g:150} }
+  ];
+
 
   /* ====== App factory (unchanged except small a11y tweaks) ====== */
   function App(rootId){
