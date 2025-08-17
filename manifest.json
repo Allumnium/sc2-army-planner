@@ -1,0 +1,18 @@
+{
+  "id": "https://allumnium.github.io/sc2-army-planner/",
+  "name": "SC2 Economy & Army Planner — Dual",
+  "short_name": "SC2 Planner",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#0b0f14",
+  "theme_color": "#0b0f14",
+  "description": "Compare two SC2 builds, see true composition, DPS, counters, and share via URL.",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "categories": ["games", "utilities"],
+  "display_override": ["standalone"]
+}

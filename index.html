@@ -1,455 +1,438 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>SC2 Economy & Army Planner — Dual</title>
-<style>
-  :root{
-    --bg:#0b0f14;--card:#111827;--ink:#e7eefb;--muted:#9ab0cd;--line:#24324b;
-    --accent:#59b0ff;--accentLight:#9fd3ff;--danger:#ff6b6b;--ok:#6ee7a8;--warn:#ffd166;
-    --gasDark:#0d4020;--gas:#1d8a3d;
-  }
-  *{box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,sans-serif}
-  body{margin:0;background:var(--bg);color:var(--ink)}
-  header{position:sticky;top:0;z-index:5;background:#0d131c;border-bottom:1px solid var(--line);padding:8px 16px 8px 10px}
-  .hrow{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding-right:16px}
-  .hleft{display:flex;align-items:center;gap:12px}
-  .hright{display:flex;gap:8px;align-items:center}
-  h1{margin:0;font-size:16px}
-  a{color:var(--accentLight);text-decoration:none}
-  a:hover{text-decoration:underline}
-  button{background:var(--accent);color:#001528;border:none;padding:8px 10px;border-radius:8px;font-weight:700;white-space:nowrap}
-  .btn-ghost{background:transparent;border:1px solid #2a3b58;color:var(--ink)}
-  .wrap{padding:10px}
-  .dual{display:grid;gap:10px}
-  @media(min-width:950px){.dual{grid-template-columns:1fr 1fr}}
-  .side{display:grid;gap:10px}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px}
-  .sideTitle{font-weight:800;margin:0 0 6px 0}
-  details{background:#0e1623;border:1px solid var(--line);border-radius:10px;padding:6px}
-  details>summary{cursor:pointer;font-weight:700;margin:-6px;-webkit-margin-before:-6px;list-style:none;padding:6px}
-  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-  .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
-  label{font-size:12px;color:var(--muted)}
-  input[type=number],select{background:#0a111a;color:var(--ink);border:1px solid #25344e;border-radius:8px;padding:6px 8px;font-size:14px}
-  table{width:100%;border-collapse:collapse;margin-top:6px}
-  th,td{padding:6px;border-bottom:1px solid var(--line);font-size:13px}
-  th{color:var(--muted);font-weight:600}
-  .right{text-align:right}
-  .small{font-size:12px}.muted{color:var(--muted)}.big{font-size:20px;font-weight:800}
-  .pill{display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid #2a3b58;background:#0c1625;color:#bfe0ff;font-size:12px}
-  .okay{color:#99f7a2}.warn{color:#ffd166}.bad{color:#ff6b6b}
-  .tip{border-bottom:1px dotted #7da8e1;cursor:help}
-/* Bars grow from the left via JS-controlled width */
-.bar .incomeM,
-.bar .spendM,
-.bar .incomeG,
-.bar .spendG{
-  position:absolute;
-  left:0; top:0; bottom:0;
-  width:0;           /* JS sets % width */
-}
+  <!-- Core meta -->
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SC2 Economy & Army Planner — Dual</title>
+  <meta name="description" content="SC2 economy & army planner — compare two builds, see true composition, DPS, and counters. Share via URL." />
+  <link rel="canonical" href="https://allumnium.github.io/sc2-army-planner/" />
 
-.bar .incomeM{ background:#0d2540; }
-.bar .spendM{  background:linear-gradient(90deg, var(--accentLight), var(--accent)); opacity:.9; }
-.bar .incomeG{ background:var(--gasDark); }
-.bar .spendG{  background:linear-gradient(90deg, #5adb7c, var(--gas)); opacity:.95; }
+  <!-- Social sharing -->
+  <meta property="og:title" content="SC2 Economy & Army Planner — Dual" />
+  <meta property="og:description" content="Plan steady-state production and visualize the army you can actually field." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://allumnium.github.io/sc2-army-planner/" />
+  <meta property="og:image" content="https://allumnium.github.io/sc2-army-planner/docs/screenshot.png" />
+  <meta property="og:site_name" content="SC2 Economy & Army Planner">
+  <meta name="twitter:image" content="https://allumnium.github.io/sc2-army-planner/docs/screenshot.png">
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="apple-mobile-web-app-capable" content="yes">
 
-/* Overspend fills from the right */
-.bar .overflow{
-  position:absolute;
-  right:0; top:0; bottom:0;
-  width:0;
-  background:var(--danger);
-}
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#0b0f14" />
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
 
-  /* Qualities bars */
-  .qrow{display:flex;gap:8px;align-items:center;margin:4px 0}
-  .qname{width:116px;color:var(--muted);font-size:12px}
-  .qbar{flex:1;height:10px;background:#0b1522;border:1px solid #2a3b58;border-radius:6px;overflow:hidden;position:relative}
-  .qbar>i{display:block;height:100%;width:0;background:var(--accent)}
-  .qval{width:42px;text-align:right;font-size:12px;color:#cfe6ff}
-  .sideHeader{display:flex;align-items:center;justify-content:space-between;margin:-2px 0 4px 0}
-  tr.rTerran  { background: rgba(90,130,220,0.12); }
-  tr.rProtoss { background: rgba(240,220,100,0.10); }
-  tr.rZerg    { background: rgba(180, 90,210,0.12); }
-  .dual { align-items:start }
-  .side > .card { margin:0 } /* remove accidental extra margins */
-  /* ===== Compact mode (~22–25% tighter) ===== */
-body.compact .wrap{padding:6px}
-body.compact .dual{gap:6px}
-body.compact .side{gap:6px}
-body.compact .card{padding:8px;border-radius:8px}
-body.compact details{padding:4px}
-body.compact details>summary{padding:4px}
-body.compact .sideHeader{margin:-2px 0 2px 0}
-body.compact .sideTitle{margin:0 0 4px 0}
+  <!-- Security: keep permissive for inline CSS/JS used here -->
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self';
+            script-src 'self' 'unsafe-inline';
+            style-src 'self' 'unsafe-inline';
+            img-src 'self' https: data:;
+            connect-src 'self';
+            object-src 'none';
+            base-uri 'self';
+            frame-ancestors 'none';">
 
-body.compact .grid2, 
-body.compact .grid3, 
-body.compact .grid4{gap:6px}
+  <style>
+    :root{
+      --bg:#0b0f14;--card:#111827;--ink:#e7eefb;--muted:#9ab0cd;--line:#24324b;
+      --accent:#59b0ff;--accentLight:#9fd3ff;--danger:#ff6b6b;--ok:#6ee7a8;--warn:#ffd166;
+      --gasDark:#0d4020;--gas:#1d8a3d;
+    }
+    *{box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,sans-serif}
+    body{margin:0;background:var(--bg);color:var(--ink)}
+    header{position:sticky;top:0;z-index:5;background:#0d131c;border-bottom:1px solid var(--line);padding:8px 16px 8px 10px}
+    .hrow{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding-right:16px}
+    .hleft{display:flex;align-items:center;gap:12px}
+    .hright{display:flex;gap:8px;align-items:center}
+    h1{margin:0;font-size:16px}
+    a{color:var(--accentLight);text-decoration:none}
+    a:hover{text-decoration:underline}
+    button{background:var(--accent);color:#001528;border:none;padding:8px 10px;border-radius:8px;font-weight:700;white-space:nowrap}
+    .btn-ghost{background:transparent;border:1px solid #2a3b58;color:var(--ink)}
+    .wrap{padding:10px}
+    .dual{display:grid;gap:10px}
+    @media(min-width:950px){.dual{grid-template-columns:1fr 1fr}}
+    .side{display:grid;gap:10px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px}
+    .sideTitle{font-weight:800;margin:0 0 6px 0}
+    details{background:#0e1623;border:1px solid var(--line);border-radius:10px;padding:6px}
+    details>summary{cursor:pointer;font-weight:700;margin:-6px;-webkit-margin-before:-6px;list-style:none;padding:6px}
+    .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+    .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+    label{font-size:12px;color:var(--muted)}
+    input[type=number],select{background:#0a111a;color:var(--ink);border:1px solid #25344e;border-radius:8px;padding:6px 8px;font-size:14px}
+    table{width:100%;border-collapse:collapse;margin-top:6px}
+    th,td{padding:6px;border-bottom:1px solid var(--line);font-size:13px}
+    th{color:var(--muted);font-weight:600}
+    .right{text-align:right}
+    .small{font-size:12px}.muted{color:var(--muted)}.big{font-size:20px;font-weight:800}
+    .pill{display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid #2a3b58;background:#0c1625;color:#bfe0ff;font-size:12px}
+    .okay{color:#99f7a2}.warn{color:#ffd166}.bad{color:#ff6b6b}
+    .tip{border-bottom:1px dotted #7da8e1;cursor:help}
 
-body.compact .row{gap:6px}
-body.compact button{padding:6px 8px;border-radius:6px}
-body.compact h1{font-size:15px}
-body.compact .big{font-size:18px;font-weight:800}
-/* Smaller summary, with a second line for the comp */
-[data-id="actualSummary"]{
-  font-size:16px;           /* was 20px via .big – smaller, but still bold */
-  font-weight:800;
-  line-height:1.25;
-}
-[data-id="actualSummary"] .comp{
-  display:block;
-  margin-top:2px;
-  font-size:12px;
-  color:#cfe6ff;
-}
+    /* Bars */
+    .bar .incomeM,.bar .spendM,.bar .incomeG,.bar .spendG{
+      position:absolute;left:0;top:0;bottom:0;width:0;
+    }
+    .bar .incomeM{ background:#0d2540; }
+    .bar .spendM{  background:linear-gradient(90deg, var(--accentLight), var(--accent)); opacity:.9; }
+    .bar .incomeG{ background:var(--gasDark); }
+    .bar .spendG{  background:linear-gradient(90deg, #5adb7c, var(--gas)); opacity:.95; }
+    .bar .overflow{ position:absolute; right:0; top:0; bottom:0; width:0; background:var(--danger); }
 
-/* Compact mode tweak */
-body.compact [data-id="actualSummary"]{font-size:14px}
-body.compact [data-id="actualSummary"] .comp{font-size:11px}
+    /* Qualities */
+    .qrow{display:flex;gap:8px;align-items:center;margin:4px 0}
+    .qname{width:116px;color:var(--muted);font-size:12px}
+    .qbar{flex:1;height:10px;background:#0b1522;border:1px solid #2a3b58;border-radius:6px;overflow:hidden;position:relative}
+    .qbar>i{display:block;height:100%;width:0;background:var(--accent)}
+    .qval{width:42px;text-align:right;font-size:12px;color:#cfe6ff}
+    .sideHeader{display:flex;align-items:center;justify-content:space-between;margin:-2px 0 4px 0}
+    tr.rTerran  { background: rgba(90,130,220,0.12); }
+    tr.rProtoss { background: rgba(240,220,100,0.10); }
+    tr.rZerg    { background: rgba(180, 90,210,0.12); }
+    .dual { align-items:start }
+    .side > .card { margin:0 }
 
-/* Hide the old tiny list at the bottom of the Army card */
-[data-id="actualList"]{ display:none; }
-body.compact .small{font-size:11px}
-body.compact label{font-size:11px}
-body.compact input[type=number], 
-body.compact select{padding:4px 6px;font-size:13px}
+    /* Compact mode */
+    body.compact .wrap{padding:6px}
+    body.compact .dual{gap:6px}
+    body.compact .side{gap:6px}
+    body.compact .card{padding:8px;border-radius:8px}
+    body.compact details{padding:4px}
+    body.compact details>summary{padding:4px}
+    body.compact .sideHeader{margin:-2px 0 2px 0}
+    body.compact .sideTitle{margin:0 0 4px 0}
+    body.compact .grid2, body.compact .grid3, body.compact .grid4{gap:6px}
+    body.compact .row{gap:6px}
+    body.compact button{padding:6px 8px;border-radius:6px}
+    body.compact h1{font-size:15px}
+    body.compact .big{font-size:18px;font-weight:800}
+    body.compact .small{font-size:11px}
+    body.compact label{font-size:11px}
+    body.compact input[type=number], body.compact select{padding:4px 6px;font-size:13px}
+    body.compact table{margin-top:4px}
+    body.compact th, body.compact td{padding:4px;font-size:12px}
+    body.compact .pill{padding:1px 6px;font-size:11px}
+    body.compact .bar{height:10px}
+    body.compact .qbar{height:8px}
+    body.compact .qname{width:100px}
+    body.compact .qval{width:36px}
+    body.compact .qrow{margin:2px 0}
+    body.compact p{margin:6px 0}
+    body.compact [style*="margin-top:8px"]{margin-top:4px !important}
+    body.compact [style*="margin-top:6px"]{margin-top:3px !important}
 
-body.compact table{margin-top:4px}
-body.compact th, 
-body.compact td{padding:4px;font-size:12px}
+    .overspend{ color:red; font-weight:bold; }
 
-body.compact .pill{padding:1px 6px;font-size:11px}
-body.compact .bar{height:10px}
-body.compact .qbar{height:8px}
-body.compact .qname{width:100px}
-body.compact .qval{width:36px}
+    /* Bars container */
+    .inline-inputs{ display:flex; gap:1rem; align-items:center; }
+    .inline-inputs label{ margin-right:0.25rem; }
+    .resource-row{ display:flex; flex-direction:column; }
+    .bar-wrap{ display:flex; align-items:center; gap:6px; }
+    .bar{ flex:1; position:relative; height:12px; background:#333; border-radius:2px; }
+    .numbers{ white-space:nowrap; font-size:.9em; min-width:80px; text-align:right; }
 
-body.compact .qrow{margin:2px 0}
+    /* Summary: smaller + comp line */
+    [data-id="actualSummary"]{ font-size:16px; font-weight:800; line-height:1.25; }
+    [data-id="actualSummary"] .comp{ display:block; margin-top:2px; font-size:12px; color:#cfe6ff; }
+    body.compact [data-id="actualSummary"]{font-size:14px}
+    body.compact [data-id="actualSummary"] .comp{font-size:11px}
 
-/* tighten paragraphs & common inline top-margins used in the markup */
-body.compact p{margin:6px 0}
-body.compact [style*="margin-top:8px"]{margin-top:4px !important}
-body.compact [style*="margin-top:6px"]{margin-top:3px !important}
-
-.overspend { color: red; font-weight: bold; }
-
-/* header tweaks */
-body.compact header{padding:6px 12px}
-body.compact .hrow{gap:8px;padding-right:12px}
-.inline-inputs {
-  display: flex;
-  gap: 1rem;        /* spacing between groups */
-  align-items: center;
-}
-.inline-inputs label {
-  margin-right: 0.25rem; /* tighten label-input spacing */
-}
-.resource-row {
-  display: flex;
-  flex-direction: column;
-}
-
-.bar-wrap {
-  display: flex;
-  align-items: center;
-  gap: 6px; /* space between bar and numbers */
-}
-
-.bar {
-  flex: 1;
-  position: relative;
-  height: 12px;
-  background: #333; /* your background */
-  border-radius: 2px;
-}
-
-.numbers {
-  white-space: nowrap;
-  font-size: 0.9em;
-  min-width: 80px; /* keeps consistent alignment */
-  text-align: right;
-}
-
-
-</style>
+    /* Footer */
+    footer{border-top:1px solid var(--line);padding:12px;text-align:center;background:#0d131c}
+    footer a{ color:#bfe0ff; }
+    footer .sub{ opacity:.8; }
+  </style>
 </head>
+
 <body>
-<header>
-  <div class="hrow">
-    <div class="hleft">
-      <h1>SC2 Economy & Army Planner</h1>
-      <div class="small muted">Send feedback/bugs: <a href="mailto:grassblade.dev@gmail.com">grassblade.dev@gmail.com</a></div>
-    </div>
-    <div class="hright">
-        <button id="toggleCompact" class="btn-ghost" hidden>Compact</button>
-      <a class="btn-ghost" href="https://www.venmo.com/u/Grassblade-dev" target="_blank" rel="noopener">-Support the developer-</a>
-      <button id="copyUrl">Share Army URL</button>
-      <span class="small muted" id="copyMsg"></span>
-    </div>
-  </div>
-</header>
-
-<div class="wrap">
-  <div class="dual">
-    <!-- LEFT APP -->
-    <div class="side" id="sideL">
-      <div class="sideHeader">
-        <h3 class="sideTitle">Team 1</h3>
+  <header>
+    <div class="hrow">
+      <div class="hleft">
+        <h1>SC2 Economy & Army Planner</h1>
+        <div class="small muted">Send feedback/bugs: <a href="mailto:grassblade.dev@gmail.com">grassblade.dev@gmail.com</a></div>
       </div>
+      <div class="hright">
+        <button id="toggleCompact" class="btn-ghost" type="button" aria-label="Toggle compact view" hidden>Compact</button>
+        <a class="btn-ghost" href="https://www.venmo.com/u/Grassblade-dev" target="_blank" rel="noopener noreferrer">Support the developer</a>
+        <button id="copyUrl" type="button" aria-label="Copy shareable army URL">Share Army URL</button>
+        <span class="small muted" id="copyMsg" role="status" aria-live="polite"></span>
+      </div>
+    </div>
+  </header>
 
-      
-      <!-- INCOME -->
-      <details open class="card">
-        <summary>Income</summary>
-        <div class="inline-inputs">
-        <div>
-            <label># Bases</label>
-            <input data-id="bases" type="number" min="0" value="1">
-        </div>
-        <div data-id="orbitalsWrap">
-            <label>Orbital Commands (MULE spawners)</label>
-            <input data-id="orbitals" type="number" min="0" value="0">
-        </div>
-        </div>       
-        <div class="grid2">
-          <div style="margin-top:8px">
-            <div class="resource-row">
+  <noscript>
+    <div class="wrap">
+      <div class="card">This app requires JavaScript to run.</div>
+    </div>
+  </noscript>
+
+  <main class="wrap" id="main">
+    <div class="dual">
+      <!-- LEFT APP -->
+      <div class="side" id="sideL" aria-label="Team 1">
+        <div class="sideHeader"><h3 class="sideTitle">Team 1</h3></div>
+
+        <!-- INCOME -->
+        <details open class="card">
+          <summary>Income</summary>
+          <div class="inline-inputs">
+            <div>
+              <label for="l-bases"># Bases</label>
+              <input id="l-bases" data-id="bases" type="number" min="0" value="1" />
+            </div>
+            <div data-id="orbitalsWrap">
+              <label for="l-orbitals">Orbital Commands (MULE spawners)</label>
+              <input id="l-orbitals" data-id="orbitals" type="number" min="0" value="0" />
+            </div>
+          </div>
+          <div class="grid2">
+            <div style="margin-top:8px">
+              <div class="resource-row">
                 <div class="small muted">Minerals</div>
                 <div class="bar-wrap">
-                <div class="bar" title="Darker = income/min, lighter = planned spend/min; red = overspend">
+                  <div class="bar" title="Darker = income/min, lighter = planned spend/min; red = overspend">
                     <div class="incomeM" data-id="barMinInc"></div>
                     <div class="spendM"  data-id="barMinSp"></div>
                     <div class="overflow" data-id="barMinOver"></div>
+                  </div>
+                  <div class="numbers">
+                    <span data-id="numMinInc">0m</span> (<span data-id="numMinSp">0m</span>)
+                  </div>
                 </div>
-                <div class="numbers">
-                    <span data-id="numMinInc">0m</span>
-                    (<span data-id="numMinSp">0m</span>)
-                </div>
-                </div>
-            </div>
+              </div>
 
-            <div class="resource-row" style="margin-top:6px">
+              <div class="resource-row" style="margin-top:6px">
                 <div class="small muted">Gas</div>
                 <div class="bar-wrap">
-                <div class="bar" title="Darker = income/min, lighter = planned spend/min; red = overspend">
+                  <div class="bar" title="Darker = income/min, lighter = planned spend/min; red = overspend">
                     <div class="incomeG" data-id="barGasInc"></div>
                     <div class="spendG"  data-id="barGasSp"></div>
                     <div class="overflow" data-id="barGasOver"></div>
+                  </div>
+                  <div class="numbers">
+                    <span data-id="numGasInc">0g</span> (<span data-id="numGasSp">0g</span>)
+                  </div>
                 </div>
-                <div class="numbers">
-                    <span data-id="numGasInc">0g</span>
-                    (<span data-id="numGasSp">0g</span>)
-                </div>
-                </div>
-            </div>
-            </div>
-
-      </details>
-
-      <!-- UNITS -->
-      <details open class="card">
-        <summary>Units</summary>
-        <div class="row">
-            <div><label>Race</label>
-            <select data-id="race"><option>Terran</option><option>Protoss</option><option>Zerg</option></select>
-          </div>
-          <div class="row" style="gap:4px">
-            <button data-id="btnMinus5" class="btn-ghost">−5</button>
-            <button data-id="btnMinus1" class="btn-ghost">−1</button>
-            <button data-id="btnPlus1">+1</button>
-            <button data-id="btnPlus5">+5</button>
-          </div>
-          <button data-id="clearUnits" class="btn-ghost">Clear all</button>
-          <select data-id="unitSelect" style="flex:0 0 220px"></select>
-        </div>
-        <div data-id="unitTableWrap" style="display:none">
-          <table>
-            <thead data-id="thead">
-              <tr>
-                <th style="width:12%"></th>
-                <th style="width:10%">Unit</th>
-                <th class="right" title="How many of this unit you’re trying to produce constantly, every production cycle"># (constant production)</th>
-                <th class="right">minerals/min</th>
-                <th class="right">gas/min</th>
-              </tr>
-            </thead>
-            <tbody data-id="tbody"></tbody>
-            <tfoot data-id="tfoot">
-              <tr>
-                <th></th>
-                <th>Total</th>
-                <th class="right" data-id="uStreams">0</th>
-                <th class="right" data-id="uMin">0</th>
-                <th class="right" data-id="uGas">0</th>
-                <th></th>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      </details>
-
-      <!-- ACTUAL ARMY -->
-      <details open class="card">
-        <summary>Army</summary>
-        <div class="grid3">
-          <div><label>Max army supply</label><input data-id="actualSupply" type="number" min="0" value="120"></div>
-          <div><label>Summary</label><div class="big" data-id="actualSummary">0 units | 0.0 Avg DPS | 0.0 Peak DPS</div></div>
-          <div><label>Totals</label><div class="big" data-id="actualTotals">HP 0 | Armor 0.00</div></div>
-        </div>
-        <div data-id="analysisWrap">
-        <div style="margin-top:8px">
-            <div class="small muted">Time to build army</div>
-            <div class="qbar" style="margin-top:4px"><i data-id="timeBar"></i></div>
-            <div class="small" data-id="timeBuild">—</div>
-        </div>
-        <div class="card" style="margin-top:8px;background:#0c1523">
-          <div class="small muted" style="margin-bottom:4px">Army Qualities (normalized to best)</div>
-          <div class="qrow"><div class="qname">Tankiness</div><div class="qbar"><i data-id="qTank"></i></div><div class="qval" data-id="qTankV">0</div></div>
-          <div class="qrow"><div class="qname">Damage</div><div class="qbar"><i data-id="qDmg"></i></div><div class="qval" data-id="qDmgV">0</div></div>
-          <div class="qrow"><div class="qname">Utility</div><div class="qbar"><i data-id="qUtil"></i></div><div class="qval" data-id="qUtilV">0</div></div>
-          <div class="qrow"><div class="qname">Micro Requirement</div><div class="qbar"><i data-id="qDiff"></i></div><div class="qval" data-id="qDiffV">0</div></div>
-          <div class="qrow"><div class="qname">Easily Countered</div><div class="qbar"><i data-id="qVuln"></i></div><div class="qval" data-id="qVulnV">0</div></div>
-          <div class="qrow"><div class="qname">Cost</div><div class="qbar"><i data-id="qCost"></i></div><div class="qval" data-id="qCostV">0</div></div>
-        </div>
-        <div class="grid2" style="margin-top:8px">
-          <div>
-            <div class="small muted">Composition</div>
-            <div class="small" data-id="compBreak">—</div>
-          </div>
-          <div>
-            <div class="small muted">Counter Units (vs your comp)</div>
-            <div class="small" data-id="compCounters">—</div>
-          </div>
-        </div>
-        <div class="grid2" style="margin-top:8px">
-          <div>
-            <div class="small muted">Your bonus-damage profile</div>
-            <div class="small" data-id="bonusProfile">—</div>
-          </div>
-          <div>
-            <div class="small muted">Abilities</div>
-            <div class="row" style="margin-top:4px">
-              <span class="pill" data-id="aDetector">Detector: no</span>
-              <span class="pill" data-id="aBurrow">Burrow: no</span>
-              <span class="pill" data-id="aCloak">Cloak: no</span>
-              <span class="pill" data-id="aAA">Anti-air: no</span>
-              <span class="pill" data-id="aRecall">Recall: no</span>
-              <span class="pill" data-id="aScan">Scans: no</span>
-              <span class="pill" data-id="aCreep">Creep: no</span>
-              <span class="pill" data-id="aHeals">Heals: no</span>
+              </div>
             </div>
           </div>
-        </div>
-        <div class="small muted" data-id="actualList" style="margin-top:6px"></div>
-        </div>
-      </details>
+        </details>
 
-      
-      <!-- UPGRADES -->
-      <details class="card">
-        <summary>Upgrades</summary>
-        <div data-id="upgradesPanel" class="grid3 small" style="margin-top:6px"></div>
-        <div class="small muted">Weapons/armor (0–3) + key tech (Stim, Combat Shield, Adrenal, etc.). Irrelevant lines are hidden; costs count once in “Max Army”.</div>
-      </details>
+        <!-- UNITS -->
+        <details open class="card">
+          <summary>Units</summary>
+          <div class="row">
+            <div>
+              <label for="l-race">Race</label>
+              <select id="l-race" data-id="race" aria-label="Team 1 race">
+                <option>Terran</option><option>Protoss</option><option>Zerg</option>
+              </select>
+            </div>
+            <div class="row" style="gap:4px">
+              <button data-id="btnMinus5" class="btn-ghost" type="button" aria-label="Decrease by 5">−5</button>
+              <button data-id="btnMinus1" class="btn-ghost" type="button" aria-label="Decrease by 1">−1</button>
+              <button data-id="btnPlus1" type="button" aria-label="Increase by 1">+1</button>
+              <button data-id="btnPlus5" type="button" aria-label="Increase by 5">+5</button>
+            </div>
+            <button data-id="clearUnits" class="btn-ghost" type="button" aria-label="Clear all units">Clear all</button>
+            <select data-id="unitSelect" style="flex:0 0 220px" aria-label="Add unit"></select>
+          </div>
 
-      <!-- ASSUMPTIONS -->
-      <details class="card">
-        <summary>Parameters</summary>
-        <div class="small">
-          <p><b>Saturated minerals</b> per base: 8 patches; first two workers ≈ W1 and W2 m/min each; third ≈ W2/2. Base m/min = <i>8×(W1+W2+W2/2)</i>. Defaults W1=40, W2=40 ⇒ ≈816 m/min/base.</p>
-          <div class="grid4">
-            <div><label>W1 (m/min)</label><input data-id="w1" type="number" step="0.1" value="40"></div>
-            <div><label>W2 (m/min)</label><input data-id="w2" type="number" step="0.1" value="40"></div>
-            <div class="tip" title="How much 1 gas is worth in minerals when computing DPS-per-cost."><label>Gas→Mineral weight</label><input data-id="gasWeight" type="number" step="0.05" value="1.25"></div>
-            <div class="tip" title="Scales combat output for realistic micro/positioning (1.00 = perfect)."><label>Micro efficiency</label><input data-id="eff" type="number" step="0.05" min="0.1" max="1.5" value="0.60"></div>
+          <div data-id="unitTableWrap" style="display:none">
+            <table>
+              <thead data-id="thead">
+                <tr>
+                  <th style="width:12%"></th>
+                  <th style="width:10%">Unit</th>
+                  <th class="right" title="How many of this unit you’re trying to produce constantly, every production cycle"># (constant production)</th>
+                  <th class="right">minerals/min</th>
+                  <th class="right">gas/min</th>
+                </tr>
+              </thead>
+              <tbody data-id="tbody"></tbody>
+              <tfoot data-id="tfoot">
+                <tr>
+                  <th></th><th>Total</th>
+                  <th class="right" data-id="uStreams">0</th>
+                  <th class="right" data-id="uMin">0</th>
+                  <th class="right" data-id="uGas">0</th>
+                  <th></th>
+                </tr>
+              </tfoot>
+            </table>
           </div>
-          <div class="grid3" style="margin-top:6px">
-            <div><label>Geysers / base</label><input data-id="geysersPerBase" type="number" min="0" max="3" value="2"></div>
-            <div><label>Gas / geyser @3 workers (g/min)</label><input data-id="gasPerGeyserMin" type="number" step="1" value="160"></div>
-            <div><label>Gas / geyser (total bank)</label><input data-id="gasPerGeyserBank" type="number" step="50" value="2250"></div>
-          </div>
-          <div class="grid3" style="margin-top:6px">
-            <div><label>Minerals / patch</label><input data-id="mineralsPerPatch" type="number" min="500" step="100" value="1500"></div>
-            <div><label>MULE minerals per mule</label><input data-id="muleYield" type="number" value="225"></div>
-            <div><label>Seconds to 50 energy (Orbital)</label><input data-id="secTo50" type="number" step="0.1" value="88.9"></div>
-          </div>
-          <p class="muted">“Peak DPS” includes burst windows and upgrade multipliers. Brood Lords account for Zerg Melee upgrades (Broodlings).</p>
-        </div>
-      </details>
-    </div>
+        </details>
 
-    <!-- RIGHT APP -->
-    <div class="side" id="sideR">
-      <div class="sideHeader">
-        <h3 class="sideTitle">Team 2</h3>
+        <!-- ARMY -->
+        <details open class="card">
+          <summary>Army</summary>
+          <div class="grid3">
+            <div><label>Max army supply</label><input data-id="actualSupply" type="number" min="0" value="120" /></div>
+            <div><label>Summary</label><div class="big" data-id="actualSummary">0 units | 0.0 Avg DPS | 0.0 Peak DPS</div></div>
+            <div><label>Totals</label><div class="big" data-id="actualTotals">HP 0 | Armor 0.00</div></div>
+          </div>
+
+          <div data-id="analysisWrap">
+            <div style="margin-top:8px">
+              <div class="small muted">Time to build army</div>
+              <div class="qbar" style="margin-top:4px"><i data-id="timeBar"></i></div>
+              <div class="small" data-id="timeBuild">—</div>
+            </div>
+
+            <div class="card" style="margin-top:8px;background:#0c1523">
+              <div class="small muted" style="margin-bottom:4px">Army Qualities (normalized to best)</div>
+              <div class="qrow"><div class="qname">Tankiness</div><div class="qbar"><i data-id="qTank"></i></div><div class="qval" data-id="qTankV">0</div></div>
+              <div class="qrow"><div class="qname">Damage</div><div class="qbar"><i data-id="qDmg"></i></div><div class="qval" data-id="qDmgV">0</div></div>
+              <div class="qrow"><div class="qname">Utility</div><div class="qbar"><i data-id="qUtil"></i></div><div class="qval" data-id="qUtilV">0</div></div>
+              <div class="qrow"><div class="qname">Micro Requirement</div><div class="qbar"><i data-id="qDiff"></i></div><div class="qval" data-id="qDiffV">0</div></div>
+              <div class="qrow"><div class="qname">Easily Countered</div><div class="qbar"><i data-id="qVuln"></i></div><div class="qval" data-id="qVulnV">0</div></div>
+              <div class="qrow"><div class="qname">Cost</div><div class="qbar"><i data-id="qCost"></i></div><div class="qval" data-id="qCostV">0</div></div>
+            </div>
+
+            <div class="grid2" style="margin-top:8px">
+              <div>
+                <div class="small muted">Composition</div>
+                <div class="small" data-id="compBreak">—</div>
+              </div>
+              <div>
+                <div class="small muted">Counter Units (vs your comp)</div>
+                <div class="small" data-id="compCounters">—</div>
+              </div>
+            </div>
+
+            <div class="grid2" style="margin-top:8px">
+              <div>
+                <div class="small muted">Your bonus-damage profile</div>
+                <div class="small" data-id="bonusProfile">—</div>
+              </div>
+              <div>
+                <div class="small muted">Abilities</div>
+                <div class="row" style="margin-top:4px">
+                  <span class="pill" data-id="aDetector">Detector: no</span>
+                  <span class="pill" data-id="aBurrow">Burrow: no</span>
+                  <span class="pill" data-id="aCloak">Cloak: no</span>
+                  <span class="pill" data-id="aAA">Anti-air: no</span>
+                  <span class="pill" data-id="aRecall">Recall: no</span>
+                  <span class="pill" data-id="aScan">Scans: no</span>
+                  <span class="pill" data-id="aCreep">Creep: no</span>
+                  <span class="pill" data-id="aHeals">Heals: no</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Old tiny list replaced by inline comp in summary -->
+            <div class="small muted" data-id="actualList" style="margin-top:6px; display:none"></div>
+          </div>
+        </details>
+
+        <!-- UPGRADES -->
+        <details class="card">
+          <summary>Upgrades</summary>
+          <div data-id="upgradesPanel" class="grid3 small" style="margin-top:6px"></div>
+          <div class="small muted">Weapons/armor (0–3) + key tech (Stim, Combat Shield, Adrenal, etc.). Irrelevant lines are hidden; costs count once in “Max Army”.</div>
+        </details>
+
+        <!-- PARAMETERS -->
+        <details class="card">
+          <summary>Parameters</summary>
+          <div class="small">
+            <p><b>Saturated minerals</b> per base: 8 patches; first two workers ≈ W1 and W2 m/min each; third ≈ W2/2. Base m/min = <i>8×(W1+W2+W2/2)</i>. Defaults W1=40, W2=40 ⇒ ≈816 m/min/base.</p>
+            <div class="grid4">
+              <div><label>W1 (m/min)</label><input data-id="w1" type="number" step="0.1" value="40"></div>
+              <div><label>W2 (m/min)</label><input data-id="w2" type="number" step="0.1" value="40"></div>
+              <div class="tip" title="How much 1 gas is worth in minerals when computing DPS-per-cost."><label>Gas→Mineral weight</label><input data-id="gasWeight" type="number" step="0.05" value="1.25"></div>
+              <div class="tip" title="Scales combat output for realistic micro/positioning (1.00 = perfect)."><label>Micro efficiency</label><input data-id="eff" type="number" step="0.05" min="0.1" max="1.5" value="0.60"></div>
+            </div>
+            <div class="grid3" style="margin-top:6px">
+              <div><label>Geysers / base</label><input data-id="geysersPerBase" type="number" min="0" max="3" value="2"></div>
+              <div><label>Gas / geyser @3 workers (g/min)</label><input data-id="gasPerGeyserMin" type="number" step="1" value="160"></div>
+              <div><label>Gas / geyser (total bank)</label><input data-id="gasPerGeyserBank" type="number" step="50" value="2250"></div>
+            </div>
+            <div class="grid3" style="margin-top:6px">
+              <div><label>Minerals / patch</label><input data-id="mineralsPerPatch" type="number" min="500" step="100" value="1500"></div>
+              <div><label>MULE minerals per mule</label><input data-id="muleYield" type="number" value="225"></div>
+              <div><label>Seconds to 50 energy (Orbital)</label><input data-id="secTo50" type="number" step="0.1" value="88.9"></div>
+            </div>
+            <p class="muted">“Peak DPS” includes burst windows and upgrade multipliers. Brood Lords account for Zerg Melee upgrades (Broodlings).</p>
+          </div>
+        </details>
       </div>
-      <!-- The entire same structure as Left; generated by script for brevity -->
+
+      <!-- RIGHT APP -->
+      <div class="side" id="sideR" aria-label="Team 2">
+        <div class="sideHeader"><h3 class="sideTitle">Team 2</h3></div>
+        <!-- The entire same structure as Left; generated by script for brevity -->
+      </div>
     </div>
-  </div>
-</div>
+  </main>
 
-<script>
-/* ======= Shared unit data ======= */
-const T={
- "Marine":{m:50,g:0,t:18,dps:9.8,dpsMax:12,hp:45,sh:0,armor:0,sup:1,tags:["bio","aa"],flags:{heals:true},micro:2,attrs:["light","bio","ground"],pref:["air","light"]},
- "Marauder":{m:100,g:25,t:21,dps:10,dpsMax:12,hp:125,sh:0,armor:1,sup:2,tags:["bio"],flags:{heals:true},micro:2,attrs:["armored","bio","ground"],pref:["armored"]},
- "Reaper":{m:50,g:50,t:32,dps:7,dpsMax:8,hp:60,sh:0,armor:0,sup:1,tags:["bio","aa"],flags:{},micro:4,attrs:["light","bio","ground"],pref:["light"]},
- "Ghost":{m:150,g:125,t:43,dps:10,dpsMax:14,hp:100,sh:0,armor:0,sup:2,tags:["bio"],flags:{cloak:true},micro:5,attrs:["light","bio","ground"],pref:["bio","armored"]},
- "Hellion":{m:100,g:0,t:21,dps:8,dpsMax:16,hp:90,sh:0,armor:0,sup:2,tags:["mech"],flags:{},micro:2,attrs:["light","mech","ground"],pref:["light"]},
- "Hellbat":{m:100,g:0,t:21,dps:9,dpsMax:18,hp:135,sh:0,armor:1,sup:2,tags:["mech"],flags:{},micro:2,attrs:["armored","mech","ground"],pref:["light"]},
- "Widow Mine":{m:75,g:25,t:21,dps:6,dpsMax:40,hp:90,sh:0,armor:0,sup:2,tags:["mech","aa","bursty"],flags:{burrow:true},micro:3,attrs:["light","mech","ground"],pref:["light","air"]},
- "Cyclone":{m:150,g:100,t:32,dps:13,dpsMax:16,hp:120,sh:0,armor:1,sup:3,tags:["mech","aa"],flags:{},micro:4,attrs:["armored","mech","ground"],pref:["armored","air"]},
- "Siege Tank":{m:150,g:125,t:32,dps:21,dpsMax:35,hp:160,sh:0,armor:1,sup:3,tags:["mech","bursty"],flags:{},micro:3,attrs:["armored","mech","ground"],pref:["armored"]},
- "Thor":{m:300,g:200,t:43,dps:24,dpsMax:30,hp:400,sh:0,armor:1,sup:6,tags:["mech","aa"],flags:{},micro:3,attrs:["armored","mech","ground","massive"],pref:["air","armored"]},
- "Viking":{m:150,g:75,t:30,dps:12,dpsMax:15,hp:135,sh:0,armor:0,sup:2,tags:["air","aa"],flags:{},micro:2,attrs:["light","mech","air"],pref:["air"]},
- "Medivac":{m:100,g:100,t:30,dps:0,dpsMax:0,hp:150,sh:0,armor:1,sup:2,tags:["air","support"],flags:{heals:true},micro:3,attrs:["light","mech","air"],pref:[]},
- "Liberator":{m:150,g:125,t:43,dps:18,dpsMax:40,hp:180,sh:0,armor:0,sup:3,tags:["air","aa","bursty"],flags:{},micro:4,attrs:["armored","mech","air"],pref:["ground","armored"]},
- "Banshee":{m:150,g:100,t:43,dps:14,dpsMax:16,hp:140,sh:0,armor:0,sup:3,tags:["air"],flags:{cloak:true},micro:4,attrs:["light","mech","air"],pref:["ground"]},
- "Raven":{m:100,g:200,t:43,dps:0,dpsMax:0,hp:140,sh:0,armor:1,sup:2,tags:["air","support"],flags:{detector:true},micro:5,attrs:["light","mech","air"],pref:[]},
- "Battlecruiser":{m:400,g:300,t:64,dps:25,dpsMax:32,hp:550,sh:0,armor:3,sup:6,tags:["air","aa"],flags:{},micro:2,attrs:["armored","mech","air","massive"],pref:["air","armored"]}
-};
-const P={
- "Zealot":{m:100,g:0,t:27,dps:8,dpsMax:12,hp:100,sh:50,armor:1,sup:2,tags:["ground"],flags:{},micro:2,attrs:["light","bio","ground"],pref:["light"]},
- "Stalker":{m:125,g:50,t:30,dps:10,dpsMax:13,hp:80,sh:80,armor:1,sup:2,tags:["ground","aa"],flags:{},micro:3,attrs:["armored","bio","ground"],pref:["air","armored"]},
- "Adept":{m:100,g:25,t:27,dps:9,dpsMax:13,hp:70,sh:70,armor:1,sup:2,tags:["ground","adept"],flags:{},micro:3,attrs:["light","bio","ground"],pref:["light"]},
- "Sentry":{m:50,g:100,t:26,dps:0,dpsMax:0,hp:40,sh:40,armor:1,sup:2,tags:["support"],flags:{},micro:4,attrs:["light","bio","ground"],pref:[]},
- "Immortal":{m:250,g:100,t:39,dps:18,dpsMax:24,hp:200,sh:100,armor:1,sup:4,tags:["ground"],flags:{},micro:2,attrs:["armored","bio","ground"],pref:["armored"]},
- "Colossus":{m:300,g:200,t:54,dps:20,dpsMax:40,hp:200,sh:150,armor:1,sup:6,tags:["ground","bursty","aa"],flags:{},micro:3,attrs:["armored","bio","ground","massive"],pref:["light"]},
- "Disruptor":{m:150,g:150,t:43,dps:0,dpsMax:70,hp:100,sh:100,armor:1,sup:3,tags:["bursty"],flags:{},micro:5,attrs:["armored","bio","ground"],pref:["armored","clumps"]},
- "Archon":{m:100,g:300,t:9,dps:18,dpsMax:24,hp:10,sh:350,armor:0,sup:4,tags:["ground","aa"],flags:{},micro:3,attrs:["massive","bio","ground"],pref:["bio","air"]},
- "High Templar":{m:50,g:150,t:39,dps:0,dpsMax:0,hp:40,sh:40,armor:0,sup:2,tags:["support"],flags:{},micro:5,attrs:["light","bio","ground"],pref:[]},
- "Dark Templar":{m:125,g:125,t:39,dps:14,dpsMax:18,hp:40,sh:80,armor:1,sup:2,tags:["ground"],flags:{cloak:true},micro:4,attrs:["light","bio","ground"],pref:["light"]},
- "Phoenix":{m:150,g:100,t:25,dps:10,dpsMax:12,hp:120,sh:60,armor:0,sup:2,tags:["air","aa"],flags:{},micro:4,attrs:["light","bio","air"],pref:["air","light"]},
- "Void Ray":{m:250,g:150,t:43,dps:16,dpsMax:22,hp:150,sh:100,armor:0,sup:4,tags:["air","aa"],flags:{},micro:3,attrs:["armored","bio","air"],pref:["armored"]},
- "Oracle":{m:150,g:150,t:37,dps:13,dpsMax:18,hp:100,sh:60,armor:0,sup:3,tags:["air","aa","support"],flags:{detector:true},micro:4,attrs:["light","bio","air"],pref:["light"]},
- "Tempest":{m:250,g:175,t:43,dps:12,dpsMax:16,hp:200,sh:150,armor:2,sup:5,tags:["air","aa"],flags:{},micro:3,attrs:["armored","bio","air","massive"],pref:["massive","air"]},
- "Carrier":{m:350,g:250,t:64,dps:28,dpsMax:36,hp:300,sh:150,armor:2,sup:6,tags:["air","aa"],flags:{},micro:3,attrs:["armored","bio","air","massive"],pref:["air","all"]},
- "Observer":{m:25,g:75,t:21,dps:0,dpsMax:0,hp:40,sh:20,armor:0,sup:1,tags:["air","support"],flags:{detector:true,cloak:true},micro:2,attrs:["light","bio","air"],pref:[]}
-};
-const Z={
- "Zergling":{m:25,g:0,t:17,dps:5,dpsMax:7,hp:35,sh:0,armor:0,sup:0.5,tags:["melee"],flags:{burrow:true},micro:3,attrs:["light","bio","ground"],pref:["light"]},
- "Baneling":{m:25,g:25,t:14,dps:0,dpsMax:80,hp:30,sh:0,armor:0,sup:0.5,tags:["bursty"],flags:{burrow:true},micro:4,attrs:["light","bio","ground"],pref:["light","bio","clumps"]},
- "Roach":{m:75,g:25,t:19,dps:10,dpsMax:12,hp:145,sh:0,armor:1,sup:2,tags:["ranged"],flags:{burrow:true},micro:2,attrs:["armored","bio","ground"],pref:["armored"]},
- "Ravager":{m:25,g:75,t:12,dps:11,dpsMax:50,hp:120,sh:0,armor:1,sup:3,tags:["ranged","bursty"],flags:{burrow:true},micro:4,attrs:["armored","bio","ground"],pref:["armored","clumps"]},
- "Hydralisk":{m:100,g:50,t:24,dps:12,dpsMax:15,hp:90,sh:0,armor:0,sup:2,tags:["ranged","aa"],flags:{},micro:3,attrs:["light","bio","ground"],pref:["air"]},
- "Lurker":{m:150,g:150,t:24,dps:16,dpsMax:28,hp:200,sh:0,armor:1,sup:3,tags:["ranged","bursty"],flags:{burrow:true},micro:4,attrs:["armored","bio","ground"],pref:["armored","clumps"]},
- "Infestor":{m:100,g:150,t:36,dps:0,dpsMax:0,hp:90,sh:0,armor:0,sup:2,tags:["support"],flags:{burrow:true},micro:5,attrs:["light","bio","ground"],pref:[]},
- "Swarm Host":{m:100,g:75,t:29,dps:0,dpsMax:45,hp:160,sh:0,armor:1,sup:3,tags:["bursty"],flags:{burrow:true},micro:4,attrs:["armored","bio","ground"],pref:["clumps","ground"]},
- "Ultralisk":{m:300,g:200,t:39,dps:22,dpsMax:30,hp:500,sh:0,armor:2,sup:6,tags:["melee"],flags:{},micro:3,attrs:["armored","bio","ground","massive"],pref:["light"]},
- "Mutalisk":{m:100,g:100,t:24,dps:10,dpsMax:12,hp:120,sh:0,armor:0,sup:2,tags:["air","aa"],flags:{},micro:4,attrs:["light","bio","air"],pref:["light","air"]},
- "Corruptor":{m:150,g:100,t:24,dps:12,dpsMax:15,hp:200,sh:0,armor:2,sup:2,tags:["air","aa"],flags:{},micro:3,attrs:["armored","bio","air"],pref:["massive","air"]},
- "Brood Lord":{m:150,g:150,t:34,dps:18,dpsMax:30,hp:225,sh:0,armor:1,sup:4,tags:["air","aa"],flags:{},micro:3,attrs:["armored","bio","air"],pref:["ground","armored"]},
- "Viper":{m:100,g:200,t:29,dps:0,dpsMax:0,hp:150,sh:0,armor:1,sup:3,tags:["support"],flags:{},micro:5,attrs:["armored","bio","air"],pref:[]},
- "Overseer":{m:50,g:100,t:12,dps:0,dpsMax:0,hp:200,sh:0,armor:1,sup:1,tags:["air","support"],flags:{detector:true},micro:2,attrs:["light","bio","air"],pref:[]}
-};
+  <footer class="small">
+    <div>v0.1.0 ·
+      <a href="privacy.html">Privacy</a> ·
+      <a href="terms.html">Terms</a> ·
+      <a href="https://github.com/allumnium/sc2-army-planner" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://github.com/sponsors/allumnium" target="_blank" rel="noopener noreferrer">Support the developer</a>
+    </div>
+    <div class="sub" style="margin-top:4px">Fan-made tool; not affiliated with or endorsed by Blizzard Entertainment. StarCraft II and all related names are trademarks of Blizzard.</div>
+  </footer>
 
-/* ===== Upgrades (includes more techs; irrelevant automatically hidden) ===== */
+  <script>
+  /* ======= Shared unit data ======= */
+  const T={ "Marine":{m:50,g:0,t:18,dps:9.8,dpsMax:12,hp:45,sh:0,armor:0,sup:1,tags:["bio","aa"],flags:{heals:true},micro:2,attrs:["light","bio","ground"],pref:["air","light"]},
+  "Marauder":{m:100,g:25,t:21,dps:10,dpsMax:12,hp:125,sh:0,armor:1,sup:2,tags:["bio"],flags:{heals:true},micro:2,attrs:["armored","bio","ground"],pref:["armored"]},
+  "Reaper":{m:50,g:50,t:32,dps:7,dpsMax:8,hp:60,sh:0,armor:0,sup:1,tags:["bio","aa"],flags:{},micro:4,attrs:["light","bio","ground"],pref:["light"]},
+  "Ghost":{m:150,g:125,t:43,dps:10,dpsMax:14,hp:100,sh:0,armor:0,sup:2,tags:["bio"],flags:{cloak:true},micro:5,attrs:["light","bio","ground"],pref:["bio","armored"]},
+  "Hellion":{m:100,g:0,t:21,dps:8,dpsMax:16,hp:90,sh:0,armor:0,sup:2,tags:["mech"],flags:{},micro:2,attrs:["light","mech","ground"],pref:["light"]},
+  "Hellbat":{m:100,g:0,t:21,dps:9,dpsMax:18,hp:135,sh:0,armor:1,sup:2,tags:["mech"],flags:{},micro:2,attrs:["armored","mech","ground"],pref:["light"]},
+  "Widow Mine":{m:75,g:25,t:21,dps:6,dpsMax:40,hp:90,sh:0,armor:0,sup:2,tags:["mech","aa","bursty"],flags:{burrow:true},micro:3,attrs:["light","mech","ground"],pref:["light","air"]},
+  "Cyclone":{m:150,g:100,t:32,dps:13,dpsMax:16,hp:120,sh:0,armor:1,sup:3,tags:["mech","aa"],flags:{},micro:4,attrs:["armored","mech","ground"],pref:["armored","air"]},
+  "Siege Tank":{m:150,g:125,t:32,dps:21,dpsMax:35,hp:160,sh:0,armor:1,sup:3,tags:["mech","bursty"],flags:{},micro:3,attrs:["armored","mech","ground"],pref:["armored"]},
+  "Thor":{m:300,g:200,t:43,dps:24,dpsMax:30,hp:400,sh:0,armor:1,sup:6,tags:["mech","aa"],flags:{},micro:3,attrs:["armored","mech","ground","massive"],pref:["air","armored"]},
+  "Viking":{m:150,g:75,t:30,dps:12,dpsMax:15,hp:135,sh:0,armor:0,sup:2,tags:["air","aa"],flags:{},micro:2,attrs:["light","mech","air"],pref:["air"]},
+  "Medivac":{m:100,g:100,t:30,dps:0,dpsMax:0,hp:150,sh:0,armor:1,sup:2,tags:["air","support"],flags:{heals:true},micro:3,attrs:["light","mech","air"],pref:[]},
+  "Liberator":{m:150,g:125,t:43,dps:18,dpsMax:40,hp:180,sh:0,armor:0,sup:3,tags:["air","aa","bursty"],flags:{},micro:4,attrs:["armored","mech","air"],pref:["ground","armored"]},
+  "Banshee":{m:150,g:100,t:43,dps:14,dpsMax:16,hp:140,sh:0,armor:0,sup:3,tags:["air"],flags:{cloak:true},micro:4,attrs:["light","mech","air"],pref:["ground"]},
+  "Raven":{m:100,g:200,t:43,dps:0,dpsMax:0,hp:140,sh:0,armor:1,sup:2,tags:["air","support"],flags:{detector:true},micro:5,attrs:["light","mech","air"],pref:[]},
+  "Battlecruiser":{m:400,g:300,t:64,dps:25,dpsMax:32,hp:550,sh:0,armor:3,sup:6,tags:["air","aa"],flags:{},micro:2,attrs:["armored","mech","air","massive"],pref:["air","armored"]} };
+  const P={ "Zealot":{m:100,g:0,t:27,dps:8,dpsMax:12,hp:100,sh:50,armor:1,sup:2,tags:["ground"],flags:{},micro:2,attrs:["light","bio","ground"],pref:["light"]},
+  "Stalker":{m:125,g:50,t:30,dps:10,dpsMax:13,hp:80,sh:80,armor:1,sup:2,tags:["ground","aa"],flags:{},micro:3,attrs:["armored","bio","ground"],pref:["air","armored"]},
+  "Adept":{m:100,g:25,t:27,dps:9,dpsMax:13,hp:70,sh:70,armor:1,sup:2,tags:["ground","adept"],flags:{},micro:3,attrs:["light","bio","ground"],pref:["light"]},
+  "Sentry":{m:50,g:100,t:26,dps:0,dpsMax:0,hp:40,sh:40,armor:1,sup:2,tags:["support"],flags:{},micro:4,attrs:["light","bio","ground"],pref:[]},
+  "Immortal":{m:250,g:100,t:39,dps:18,dpsMax:24,hp:200,sh:100,armor:1,sup:4,tags:["ground"],flags:{},micro:2,attrs:["armored","bio","ground"],pref:["armored"]},
+  "Colossus":{m:300,g:200,t:54,dps:20,dpsMax:40,hp:200,sh:150,armor:1,sup:6,tags:["ground","bursty"],flags:{},micro:3,attrs:["armored","bio","ground","massive"],pref:["light"]},
+  "Disruptor":{m:150,g:150,t:43,dps:0,dpsMax:70,hp:100,sh:100,armor:1,sup:3,tags:["bursty"],flags:{},micro:5,attrs:["armored","bio","ground"],pref:["armored","clumps"]},
+  "Archon":{m:100,g:300,t:9,dps:18,dpsMax:24,hp:10,sh:350,armor:0,sup:4,tags:["ground","aa"],flags:{},micro:3,attrs:["massive","bio","ground"],pref:["bio","air"]},
+  "High Templar":{m:50,g:150,t:39,dps:0,dpsMax:0,hp:40,sh:40,armor:0,sup:2,tags:["support"],flags:{},micro:5,attrs:["light","bio","ground"],pref:[]},
+  "Dark Templar":{m:125,g:125,t:39,dps:14,dpsMax:18,hp:40,sh:80,armor:1,sup:2,tags:["ground"],flags:{cloak:true},micro:4,attrs:["light","bio","ground"],pref:["light"]},
+  "Phoenix":{m:150,g:100,t:25,dps:10,dpsMax:12,hp:120,sh:60,armor:0,sup:2,tags:["air","aa"],flags:{},micro:4,attrs:["light","bio","air"],pref:["air","light"]},
+  "Void Ray":{m:250,g:150,t:43,dps:16,dpsMax:22,hp:150,sh:100,armor:0,sup:4,tags:["air","aa"],flags:{},micro:3,attrs:["armored","bio","air"],pref:["armored"]},
+  "Oracle":{m:150,g:150,t:37,dps:13,dpsMax:18,hp:100,sh:60,armor:0,sup:3,tags:["air","aa","support"],flags:{detector:true},micro:4,attrs:["light","bio","air"],pref:["light"]},
+  "Tempest":{m:250,g:175,t:43,dps:12,dpsMax:16,hp:200,sh:150,armor:2,sup:5,tags:["air","aa"],flags:{},micro:3,attrs:["armored","bio","air","massive"],pref:["massive","air"]},
+  "Carrier":{m:350,g:250,t:64,dps:28,dpsMax:36,hp:300,sh:150,armor:2,sup:6,tags:["air","aa"],flags:{},micro:3,attrs:["armored","bio","air","massive"],pref:["air","all"]},
+  "Observer":{m:25,g:75,t:21,dps:0,dpsMax:0,hp:40,sh:20,armor:0,sup:1,tags:["air","support"],flags:{detector:true,cloak:true},micro:2,attrs:["light","bio","air"],pref:[]} };
+  const Z={ "Zergling":{m:25,g:0,t:17,dps:5,dpsMax:7,hp:35,sh:0,armor:0,sup:0.5,tags:["melee"],flags:{burrow:true},micro:3,attrs:["light","bio","ground"],pref:["light"]},
+  "Baneling":{m:25,g:25,t:14,dps:0,dpsMax:80,hp:30,sh:0,armor:0,sup:0.5,tags:["bursty"],flags:{burrow:true},micro:4,attrs:["light","bio","ground"],pref:["light","bio","clumps"]},
+  "Roach":{m:75,g:25,t:19,dps:10,dpsMax:12,hp:145,sh:0,armor:1,sup:2,tags:["ranged"],flags:{burrow:true},micro:2,attrs:["armored","bio","ground"],pref:["armored"]},
+  "Ravager":{m:25,g:75,t:12,dps:11,dpsMax:50,hp:120,sh:0,armor:1,sup:3,tags:["ranged","bursty"],flags:{burrow:true},micro:4,attrs:["armored","bio","ground"],pref:["armored","clumps"]},
+  "Hydralisk":{m:100,g:50,t:24,dps:12,dpsMax:15,hp:90,sh:0,armor:0,sup:2,tags:["ranged","aa"],flags:{},micro:3,attrs:["light","bio","ground"],pref:["air"]},
+  "Lurker":{m:150,g:150,t:24,dps:16,dpsMax:28,hp:200,sh:0,armor:1,sup:3,tags:["ranged","bursty"],flags:{burrow:true},micro:4,attrs:["armored","bio","ground"],pref:["armored","clumps"]},
+  "Infestor":{m:100,g:150,t:36,dps:0,dpsMax:0,hp:90,sh:0,armor:0,sup:2,tags:["support"],flags:{burrow:true},micro:5,attrs:["light","bio","ground"],pref:[]},
+  "Swarm Host":{m:100,g:75,t:29,dps:0,dpsMax:45,hp:160,sh:0,armor:1,sup:3,tags:["bursty"],flags:{burrow:true},micro:4,attrs:["armored","bio","ground"],pref:["clumps","ground"]},
+  "Ultralisk":{m:300,g:200,t:39,dps:22,dpsMax:30,hp:500,sh:0,armor:2,sup:6,tags:["melee"],flags:{},micro:3,attrs:["armored","bio","ground","massive"],pref:["light"]},
+  "Mutalisk":{m:100,g:100,t:24,dps:10,dpsMax:12,hp:120,sh:0,armor:0,sup:2,tags:["air","aa"],flags:{},micro:4,attrs:["light","bio","air"],pref:["light","air"]},
+  "Corruptor":{m:150,g:100,t:24,dps:12,dpsMax:15,hp:200,sh:0,armor:2,sup:2,tags:["air","aa"],flags:{},micro:3,attrs:["armored","bio","air"],pref:["massive","air"]},
+  "Brood Lord":{m:150,g:150,t:34,dps:18,dpsMax:30,hp:225,sh:0,armor:1,sup:4,tags:["air"],flags:{},micro:3,attrs:["armored","bio","air"],pref:["ground","armored"]},
+  "Viper":{m:100,g:200,t:29,dps:0,dpsMax:0,hp:150,sh:0,armor:1,sup:3,tags:["support"],flags:{},micro:5,attrs:["armored","bio","air"],pref:[]},
+  "Overseer":{m:50,g:100,t:12,dps:0,dpsMax:0,hp:200,sh:0,armor:1,sup:1,tags:["air","support"],flags:{detector:true},micro:2,attrs:["light","bio","air"],pref:[]} };
+
+  /* ===== Upgrades metadata omitted here to save space: keep yours as-is (unchanged) ===== */
 const T_UP=[
   {key:"bio_weap", label:"Infantry Weapons (0–3)", cat:"weapon", applies:u=>u.tags.includes("bio")},
   {key:"bio_arm",  label:"Infantry Armor (0–3)",   cat:"armor",  applies:u=>u.tags.includes("bio")},
@@ -515,157 +498,131 @@ const Z_UP=[
   {key:"chitin",      label:"Chitinous Plating (Ultra) +2 armor",     cat:"toggle", applies:u=>u===Z["Ultralisk"], armor:+2, cost:{m:150,g:150}},
 ];
 
-/* ====== App factory (creates a fully working planner inside a container) ====== */
-function App(rootId){
-  const root=document.getElementById(rootId);
-  const $=sel=>root.querySelector(sel);
-  const get=key=>root.querySelector(`[data-id="${key}"]`);
-  const state={ rows:[], upgrades:{} };
+  /* ====== App factory (unchanged except small a11y tweaks) ====== */
+  function App(rootId){
+    const root=document.getElementById(rootId);
+    const get=key=>root.querySelector(`[data-id="${key}"]`);
+    const state={ rows:[], upgrades:{} };
 
-  function raceData(){
-    const r=get("race").value;
-    return r==="Terran"?{U:T,UP:T_UP,race:r}:{U:r==="Protoss"?P:Z,UP:r==="Protoss"?P_UP:Z_UP,race:r};
-  }
+    function raceData(){
+      const r=get("race").value;
+      return r==="Terran"?{U:T,UP:T_UP,race:r}:{U:r==="Protoss"?P:Z,UP:r==="Protoss"?P_UP:Z_UP,race:r};
+    }
 
-  /* ---------- Unit dropdown (alphabetical) ---------- */
-  function refreshUnitOptions(){
-    const {U}=raceData();
-    const entries=Object.entries(U).sort((a,b)=>a[0].localeCompare(b[0]));
-    const sel=get("unitSelect"); sel.innerHTML="";
-    entries.forEach(([name])=>{const o=document.createElement("option"); o.value=name; o.textContent=name; sel.appendChild(o);});
-  }
+    function refreshUnitOptions(){
+      const {U}=raceData();
+      const entries=Object.entries(U).sort((a,b)=>a[0].localeCompare(b[0]));
+      const sel=get("unitSelect"); sel.innerHTML="";
+      entries.forEach(([name])=>{const o=document.createElement("option"); o.value=name; o.textContent=name; sel.appendChild(o);});
+    }
 
-  function unitLookup(name){
-    if(T[name]) return {u:T[name], race:"Terran"};
-    if(P[name]) return {u:P[name], race:"Protoss"};
-    if(Z[name]) return {u:Z[name], race:"Zerg"};
-    return null;
+    function unitLookup(name){
+      if(T[name]) return {u:T[name], race:"Terran"};
+      if(P[name]) return {u:P[name], race:"Protoss"};
+      if(Z[name]) return {u:Z[name], race:"Zerg"};
+      return null;
     }
     function currentRace(){ return get("race").value; }
 
-  /* ---------- Upgrades rendering (hidden if N/A) ---------- */
-  function renderUpgrades(){
-    const {U,UP}=raceData();
-    const chosen = state.rows
-    .map(r => U[r.name] ? U[r.name] : null)
-    .filter(Boolean);
-    const panel=get("upgradesPanel"); panel.innerHTML="";
-    if(chosen.length===0) return; // hide all if no units yet
-    UP.forEach(line=>{
-      const applies = chosen.some(u=>line.applies(u));
-      if(!applies) return; // hide if not relevant
-      const wrap=document.createElement("div");
-      if(line.cat==="toggle"){
-        const checked=!!state.upgrades[line.key];
-        wrap.innerHTML=`<label class="row"><input type="checkbox" ${checked?"checked":""}> ${line.label}</label>`;
-        const cb=wrap.querySelector("input");
-        cb.addEventListener("change",()=>{state.upgrades[line.key]=cb.checked; compute(); saveToUrl();});
-      }else{
-        const val=Number(state.upgrades[line.key]||0);
-        wrap.innerHTML=`<label class="row">${line.label}: <input type="number" min="0" max="3" step="1" value="${val}" style="width:70px"></label>`;
-        const nb=wrap.querySelector("input");
-        nb.addEventListener("input",()=>{state.upgrades[line.key]=Math.max(0,Math.min(3,Number(nb.value)||0)); compute(); saveToUrl();});
-      }
-      panel.appendChild(wrap);
-    });
-  }
+    function renderUpgrades(){
+      const {U,UP}=raceData();
+      const chosen = state.rows.map(r => U[r.name] ? U[r.name] : null).filter(Boolean);
+      const panel=get("upgradesPanel"); panel.innerHTML="";
+      if(chosen.length===0) return;
+      UP.forEach(line=>{
+        const applies = chosen.some(u=>line.applies(u));
+        if(!applies) return;
+        const wrap=document.createElement("div");
+        if(line.cat==="toggle"){
+          const checked=!!state.upgrades[line.key];
+          wrap.innerHTML=`<label class="row"><input type="checkbox" ${checked?"checked":""}> ${line.label}</label>`;
+          const cb=wrap.querySelector("input");
+          cb.addEventListener("change",()=>{state.upgrades[line.key]=cb.checked; compute(); saveToUrl();});
+        }else{
+          const val=Number(state.upgrades[line.key]||0);
+          wrap.innerHTML=`<label class="row">${line.label}: <input type="number" min="0" max="3" step="1" value="${val}" style="width:70px"></label>`;
+          const nb=wrap.querySelector("input");
+          nb.addEventListener("input",()=>{state.upgrades[line.key]=Math.max(0,Math.min(3,Number(nb.value)||0)); compute(); saveToUrl();});
+        }
+        panel.appendChild(wrap);
+      });
+    }
 
-  /* ---------- Upgrade helpers ---------- */
-  function weaponLevelFor(u){
-    const {UP}=raceData(); let lv=0;
-    UP.forEach(l=>{ if((l.cat==="weapon"||l.cat==="both") && state.upgrades[l.key]>0 && l.applies(u)) lv=Math.max(lv, Number(state.upgrades[l.key]||0)); });
-    return lv;
-  }
-  function armorLevelFor(u){
-    const {UP}=raceData(); let lv=0;
-    UP.forEach(l=>{ if((l.cat==="armor"||l.cat==="both") && state.upgrades[l.key]>0 && l.applies(u)) lv=Math.max(lv, Number(state.upgrades[l.key]||0)); });
-    return lv;
-  }
-  function togglesEffect(u){
-    const {UP}=raceData(); let mult=1,hpAdd=0,armorAdd=0,healMult=1, util=0;
-    UP.filter(l=>l.cat==="toggle").forEach(l=>{
-      if(state.upgrades[l.key] && l.applies(u)){
-        if(l.mult) mult*=l.mult;
-        if(l.hp) hpAdd+=l.hp;
-        if(l.armor) armorAdd+=l.armor;
-        if(l.healMult) healMult*=l.healMult;
-        if(l.util) util+=l.util;
-      }
-    });
-    return {mult,hpAdd,armorAdd,healMult,util};
-  }
+    function weaponLevelFor(u){ const {UP}=raceData(); let lv=0; UP.forEach(l=>{ if((l.cat==="weapon"||l.cat==="both") && state.upgrades[l.key]>0 && l.applies(u)) lv=Math.max(lv, Number(state.upgrades[l.key]||0)); }); return lv; }
+    function armorLevelFor(u){ const {UP}=raceData(); let lv=0; UP.forEach(l=>{ if((l.cat==="armor"||l.cat==="both") && state.upgrades[l.key]>0 && l.applies(u)) lv=Math.max(lv, Number(state.upgrades[l.key]||0)); }); return lv; }
+    function togglesEffect(u){
+      const {UP}=raceData(); let mult=1,hpAdd=0,armorAdd=0,healMult=1, util=0;
+      UP.filter(l=>l.cat==="toggle").forEach(l=>{
+        if(state.upgrades[l.key] && l.applies(u)){
+          if(l.mult) mult*=l.mult;
+          if(l.hp) hpAdd+=l.hp;
+          if(l.armor) armorAdd+=l.armor;
+          if(l.healMult) healMult*=l.healMult;
+          if(l.util) util+=l.util;
+        }
+      });
+      return {mult,hpAdd,armorAdd,healMult,util};
+    }
 
-  /* ---------- Add/Remove/Update rows ---------- */
-  const tableWrap=get("unitTableWrap"), tbody=get("tbody"), tfoot=get("tfoot"), thead=get("thead");
-  function showTable(show){ tableWrap.style.display= show?"block":"none"; }
-  function addUnits(delta){
-    const name=get("unitSelect").value; if(!name) return;
-    const i=state.rows.findIndex(r=>r.name===name);
-    if(i>=0){ state.rows[i].count=Math.max(0,(state.rows[i].count||0)+delta); if(state.rows[i].count===0) state.rows.splice(i,1); }
-    else if(delta>0){ state.rows.push({name, count:delta}); }
-    renderRows();
-  }
-  function removeRow(i){ state.rows.splice(i,1); renderRows(); }
-  function updateRowCount(i,v){ state.rows[i].count=Math.max(0,Number(v)||0); if(state.rows[i].count===0){ state.rows.splice(i,1);} renderRows(); }
+    const tableWrap=root.querySelector("[data-id='unitTableWrap']"),
+          tbody=root.querySelector("[data-id='tbody']"),
+          tfoot=root.querySelector("[data-id='tfoot']"),
+          thead=root.querySelector("[data-id='thead']");
+    function showTable(show){ tableWrap.style.display= show?"block":"none"; }
+    function addUnits(delta){
+      const name=get("unitSelect").value; if(!name) return;
+      const i=state.rows.findIndex(r=>r.name===name);
+      if(i>=0){ state.rows[i].count=Math.max(0,(state.rows[i].count||0)+delta); if(state.rows[i].count===0) state.rows.splice(i,1); }
+      else if(delta>0){ state.rows.push({name, count:delta}); }
+      renderRows();
+    }
+    function removeRow(i){ state.rows.splice(i,1); renderRows(); }
+    function updateRowCount(i,v){ state.rows[i].count=Math.max(0,Number(v)||0); if(state.rows[i].count===0){ state.rows.splice(i,1);} renderRows(); }
 
     function spendAndDps(u,count,unitRace){
-    const perMin=60/u.t;
-    const m=u.m*perMin*count, g=u.g*perMin*count;
-    const eff=Math.max(0.1, Number(get("eff").value)||0.6);
-
-    let dmgMult=1, armorLv=0, tog={mult:1,hpAdd:0,armorAdd:0,healMult:1,util:0};
-    if(unitRace===currentRace()){
-        dmgMult = Math.pow(1.10, weaponLevelFor(u));
-        tog = togglesEffect(u);
-        armorLv = armorLevelFor(u);
-    }
-    const dpsPerUnit = u.dps*dmgMult*tog.mult*eff;
-    const dpsPerUnitMax = u.dpsMax*dmgMult*tog.mult*eff;
-    const dps = dpsPerUnit*count, dpsMax=dpsPerUnitMax*count;
-    const armor = u.armor + armorLv + tog.armorAdd;
-    const hpUnit = u.hp + u.sh + tog.hpAdd;
-    return {m,g,dps,dpsMax,armor,hpUnit,dpsPerUnit,util:tog.util};
+      const perMin=60/u.t;
+      const m=u.m*perMin*count, g=u.g*perMin*count;
+      const eff=Math.max(0.1, Number(get("eff").value)||0.6);
+      let dmgMult=1, armorLv=0, tog={mult:1,hpAdd:0,armorAdd:0,healMult:1,util:0};
+      if(unitRace===currentRace()){ dmgMult = Math.pow(1.10, weaponLevelFor(u)); tog = togglesEffect(u); armorLv = armorLevelFor(u); }
+      const dpsPerUnit = u.dps*dmgMult*tog.mult*eff;
+      const dpsPerUnitMax = u.dpsMax*dmgMult*tog.mult*eff;
+      const dps = dpsPerUnit*count, dpsMax=dpsPerUnitMax*count;
+      const armor = u.armor + armorLv + tog.armorAdd;
+      const hpUnit = u.hp + u.sh + tog.hpAdd;
+      return {m,g,dps,dpsMax,armor,hpUnit,dpsPerUnit,util:tog.util};
     }
 
-
-  function renderRows(){
-    const {U}=raceData();
-    tbody.innerHTML="";
-    let sumM=0,sumG=0,sumD=0,sumDX=0,sumStreams=0;
-    state.rows.forEach((r,i)=>{
-        const info = unitLookup(r.name);
-        if(!info) return;
+    function renderRows(){
+      const {U}=raceData();
+      tbody.innerHTML="";
+      let sumM=0,sumG=0,sumD=0,sumDX=0,sumStreams=0;
+      state.rows.forEach((r,i)=>{
+        const info = unitLookup(r.name); if(!info) return;
         const {u, race} = info;
-        const {m,g,dps,dpsMax,dpsPerUnit}=spendAndDps(u,r.count,race);
+        const {m,g,dps,dpsMax}=spendAndDps(u,r.count,race);
         sumM+=m; sumG+=g; sumD+=dps; sumDX+=dpsMax; sumStreams+=r.count;
-
         const tr=document.createElement("tr");
         tr.className = race==="Terran" ? "rTerran" : race==="Protoss" ? "rProtoss" : "rZerg";
-        tr.innerHTML=`<td class="left" style="width:12%"><button class="btn-ghost">✕</button></td>
-        <td><b>${r.name}</b></td>
-        <td class="right"><input type="number" min="0" value="${r.count}" style="width:90px;background:#0a111a;color:#e7eefb;border:1px solid #25344e;border-radius:6px;padding:4px 6px"></td>
-        <td class="right">${m.toFixed(1)}</td>
-        <td class="right">${g.toFixed(1)}</td>`;
+        tr.innerHTML=`<td class="left" style="width:12%"><button class="btn-ghost" type="button" aria-label="Remove ${r.name}">✕</button></td>
+          <td><b>${r.name}</b></td>
+          <td class="right"><input type="number" min="0" value="${r.count}" style="width:90px;background:#0a111a;color:#e7eefb;border:1px solid #25344e;border-radius:6px;padding:4px 6px" aria-label="Count for ${r.name}"></td>
+          <td class="right">${m.toFixed(1)}</td>
+          <td class="right">${g.toFixed(1)}</td>`;
+        tr.querySelector("button").addEventListener("click",()=>removeRow(i));
+        tr.querySelector("input").addEventListener("input",(e)=>updateRowCount(i,e.target.value));
+        tbody.appendChild(tr);
+      });
+      root.querySelector("[data-id='uMin']").textContent=sumM.toFixed(1);
+      root.querySelector("[data-id='uGas']").textContent=sumG.toFixed(1);
+      root.querySelector("[data-id='uStreams']").textContent=sumStreams;
 
-      tr.querySelector("button").addEventListener("click",()=>removeRow(i));
-      tr.querySelector("input").addEventListener("input",(e)=>updateRowCount(i,e.target.value));
-      tbody.appendChild(tr);
-    });
-    get("uMin").textContent=sumM.toFixed(1);
-    get("uGas").textContent=sumG.toFixed(1);
-    get("uStreams").textContent=sumStreams;
-
-    const anyRows = state.rows.length>0;
-    showTable(anyRows);
-    tfoot.style.display = anyRows? "table-footer-group":"none";
-    thead.style.display = anyRows? "table-header-group":"none";
-
-    renderUpgrades();
-    compute();
-    saveToUrl();
-    equalizeDetailHeights();
-
-  }
+      const anyRows = state.rows.length>0;
+      showTable(anyRows);
+      tfoot.style.display = anyRows? "table-footer-group":"none";
+      thead.style.display = anyRows? "table-header-group":"none";
+      renderUpgrades(); compute(); saveToUrl(); equalizeDetailHeights();
+    }
 
   /* ---------- Income & Bars ---------- */
   function satMineralsPerBase(){const W1=Number(get("w1").value), W2=Number(get("w2").value), W3=W2/2; return 8*(W1+W2+W3);}
@@ -975,30 +932,26 @@ function compute(){
   return {getState,setState,root};
 }
 
-/* ===== Render right side by cloning left template structure ===== */
 (function buildRight(){
-  const left = document.getElementById("sideL");
+  const left  = document.getElementById("sideL");
   const right = document.getElementById("sideR");
-  // Clone everything after the sideHeader in left to right (so headings differ)
-  const toClone = Array.from(left.children).slice(1); // skip header line already present in right
-  toClone.forEach(node=> right.appendChild(node.cloneNode(true)));
+  const toClone = Array.from(left.children).slice(1);
+  const frag = document.createDocumentFragment();
+  toClone.forEach(node => frag.appendChild(node.cloneNode(true)));
+  right.appendChild(frag);
+
+  // Fix IDs: l-* -> r-*
+  right.querySelectorAll("[id^='l-']").forEach(el => {
+    const newId = el.id.replace(/^l-/, "r-");
+    // update matching labels
+    right.querySelectorAll(`label[for="${el.id}"]`).forEach(lb => lb.htmlFor = newId);
+    el.id = newId;
+  });
 })();
 
-/* ===== Instantiate two apps and wire URL share ===== */
+
 const L = App("sideL");
 const R = App("sideR");
-
-// sync <details> open state by index between the two sides
-(function syncDetails(){
-  const lD = Array.from(document.querySelectorAll("#sideL details.card"));
-  const rD = Array.from(document.querySelectorAll("#sideR details.card"));
-  function link(a,b){
-    a.addEventListener("toggle", ()=>{ b.open = a.open; });
-    b.addEventListener("toggle", ()=>{ a.open = b.open; });
-  }
-  const n = Math.min(lD.length, rD.length);
-  for(let i=0;i<n;i++) link(lD[i], rD[i]);
-})();
 
 equalizeDetailHeights();
 
@@ -1107,6 +1060,12 @@ document.getElementById("copyUrl").addEventListener("click", async ()=>{
 });
 // Turn on compact mode by default
 document.body.classList.add('compact');
-</script>
+// Register service worker (PWA)
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js');
+    });
+  }
+  </script>
 </body>
 </html>
