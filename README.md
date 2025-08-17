@@ -48,3 +48,4 @@ MIT © 2025 \<Your Name or Org> — see [LICENSE](LICENSE).
 
 **Trademark notice:**
 *StarCraft II and all related names are trademarks of Blizzard Entertainment. This project is fan-made and is not affiliated with or endorsed by Blizzard.*
+*Fan-made tool. Not affiliated with or endorsed by Blizzard Entertainment. StarCraft II and unit names are trademarks of Blizzard.*
