@@ -198,7 +198,7 @@
   <header>
     <div class="hrow">
       <div class="hleft">
-        <h1>SC2 Economy & Army Planner</h1>
+        <h1>StarCraft2 Army Planner</h1>
         <div class="small muted">Send feedback/bugs: <a href="mailto:grassblade.dev@gmail.com">grassblade.dev@gmail.com</a></div>
       </div>
       <div class="hright">
@@ -407,10 +407,10 @@
             <p><b>Income model defaults:</b> 8 patches per base. First 16 workers ≈ 40 m/min each; the 3rd on each patch ≈ 20 m/min; additional workers add 0.</p>
             <div class="grid3">
               <div><label># Workers per base</label><input data-id="workersPerBase" type="number" min="0" step="1" value="16"></div>
-              <div>
+              <!-- <div>
                 <label><span class="tip" title="Scales combat output for realistic micro/positioning (1.00 = perfect).">Micro efficiency</span></label>
                 <input data-id="eff" type="number" step="0.05" min="0.1" max="1.5" value="0.60">
-              </div>
+              </div> -->
             </div>
             <div class="grid3" style="margin-top:6px">
               <div><label>Geysers / base</label><input data-id="geysersPerBase" type="number" min="0" max="3" value="2"></div>
@@ -651,22 +651,46 @@ function _raceCaps(U) {
 
   return {dmgCap, tankCap, costEffCap};
 }
+
 function computeCapsOnce(){
-  const a=_raceCaps(T), b=_raceCaps(P), c=_raceCaps(Z);
+  let dpsPerSupMax = 0;
+  let hpPerSupMax  = 0;
+  let costPerSupMax = 0;
+
+  [T, P, Z].forEach(U => {
+    Object.values(U).forEach(u => {
+      const sup = Math.max(1e-6, u.sup || 1);
+      const dpsPerSup = baseDps(u) / sup;
+      const hpPerSup  = ((Number(u.hp)||0) + (Number(u.sh)||0)) / sup;
+      const cpsU      = (Number(u.m)||0 + Number(u.g)||0) / sup;
+
+      if (dpsPerSup > dpsPerSupMax) dpsPerSupMax = dpsPerSup;
+      if (hpPerSup  > hpPerSupMax)  hpPerSupMax  = hpPerSup;
+      if (cpsU      > costPerSupMax) costPerSupMax = cpsU;
+    });
+  });
+
+  console.log("[SC2 Planner] Caps (per-supply):", { dpsPerSupMax, hpPerSupMax, costPerSupMax });
+
   return {
-    dmgPerSup:    Math.max(a.dmgCap, b.dmgCap, c.dmgCap),
-    tankPerSup:   Math.max(a.tankCap, b.tankCap, c.tankCap),
-    costEffRatio: Math.max(a.costEffCap, b.costEffCap, c.costEffCap)
+    dpsPerSup:  dpsPerSupMax,
+    hpPerSup:   hpPerSupMax,
+    costPerSup: costPerSupMax
   };
 }
 
 /* Ability pills helper */
 function flag(el,ok,label){ el.className="pill "+(ok?"okay":"bad"); el.textContent=`${label}: ${ok?"yes":"no"}`; }
-function setAFlags(det,bur,clk,aa,recall,scans,creep,heals){
-  const root = document;
-  const g = id => root.querySelector(`[data-id="${id}"]`);
-  flag(g("aDetector"),det,"Detector"); flag(g("aBurrow"),bur,"Burrow"); flag(g("aCloak"),clk,"Cloak"); flag(g("aAA"),aa,"Anti-air");
-  flag(g("aRecall"),recall,"Recall"); flag(g("aScan"),scans,"Scans"); flag(g("aCreep"),creep,"Creep"); flag(g("aHeals"),heals,"Heals");
+function setAFlags(rootNode, det, bur, clk, aa, recall, scans, creep, heals){
+  const g = id => rootNode.querySelector(`[data-id="${id}"]`);
+  flag(g("aDetector"),det,"Detector");
+  flag(g("aBurrow"),  bur,"Burrow");
+  flag(g("aCloak"),   clk,"Cloak");
+  flag(g("aAA"),      aa, "Anti-air");
+  flag(g("aRecall"),  recall,"Recall");
+  flag(g("aScan"),    scans, "Scans");
+  flag(g("aCreep"),   creep, "Creep");
+  flag(g("aHeals"),   heals, "Heals");
 }
 
 /* =================== App factory =================== */
@@ -684,6 +708,76 @@ function App(rootId){
     }
     return { U: Z, race: r };
   }
+
+  function renderQualities(summary, tgt){
+    const totalUnits = tgt.reduce((s,x)=>s + x.count, 0);
+    const totalSup   = tgt.reduce((s,x)=>s + x.sup * x.count, 0);
+
+    const dpsPerSup = totalSup
+      ? tgt.reduce((s,x)=> s + (x.dps * x.count), 0) / totalSup
+      : 0;
+
+    // "Tankiness" = HP (incl. shields) per supply
+    const hpPerSup = totalSup
+      ? tgt.reduce((s,x)=> s + (x.hp * x.count), 0) / totalSup
+      : 0;
+
+    // Cost bar stays as avg cost per supply
+    const avgCostPerSup = totalSup
+      ? tgt.reduce((s,x)=> s + (x.costW * x.count), 0) / totalSup
+      : 0;
+
+    // Other qualities unchanged
+    function clamp01(x){ return Math.max(0, Math.min(1, x)); }
+    function setQ(el,val){ el.style.width = (val*100).toFixed(0) + "%"; }
+    function setQV(el,val){ el.textContent = Math.round(val*100); }
+
+    const utilFlags=["det","heals","clk","bur","aa","recall","scans","creep"];
+    const util = utilFlags.reduce((s,k)=>s+(summary.flags[k]?1:0),0)/utilFlags.length;
+
+    const totalUnitsForMicro = totalUnits || 1;
+    const avgMicro = tgt.reduce((s,x)=> s + (x.micro||3)*x.count, 0) / totalUnitsForMicro;
+    const diff = clamp01((avgMicro - 1) / 4);
+
+    const share = (function(){
+      const u = totalUnits || 1;
+      let light=0, armored=0, air=0, ground=0, bio=0, mech=0, aa=0;
+      tgt.forEach(x=>{
+        if(x.attrs.includes("light")) light+=x.count;
+        if(x.attrs.includes("armored")) armored+=x.count;
+        if(x.attrs.includes("air")) air+=x.count;
+        if(x.attrs.includes("ground")) ground+=x.count;
+        if(x.attrs.includes("bio")) bio+=x.count;
+        if(x.attrs.includes("mech")) mech+=x.count;
+        if(x.aa) aa+=x.count;
+      });
+      return { light:light/u, armored:armored/u, air:air/u, ground:ground/u, bio:bio/u, mech:mech/u,
+              groundOnly:(ground/u), lowAA: 1-(aa/u) };
+    })();
+    const vuln = clamp01(0.5*share.light + 0.2*share.groundOnly + 0.3*share.lowAA);
+
+    // --- normalize vs per-supply caps ---
+    const caps = GLOBAL_CAPS || { dpsPerSup:1, hpPerSup:1, costPerSup:1 };
+
+    const dmg  = clamp01( dpsPerSup     / Math.max(1e-6, caps.dpsPerSup) );
+    const tank = clamp01( hpPerSup      / Math.max(1e-6, caps.hpPerSup) );
+    const cost = clamp01( avgCostPerSup / Math.max(1e-6, caps.costPerSup) );
+
+    // bars + numbers (scoped to this side)
+    const g = (k)=> root.querySelector(`[data-id="${k}"]`);
+    setQ(g("qTank"), tank); setQV(g("qTankV"), tank);
+    setQ(g("qDmg"),  dmg);  setQV(g("qDmgV"),  dmg);
+    setQ(g("qUtil"), util); setQV(g("qUtilV"), util);
+    setQ(g("qDiff"), diff); setQV(g("qDiffV"), diff);
+    setQ(g("qVuln"), vuln); setQV(g("qVulnV"), vuln);
+    setQ(g("qCost"), cost); setQV(g("qCostV"), cost);
+
+    // tooltips with real numbers
+    g("qDmg").parentElement.title  = `DPS per supply: ${dpsPerSup.toFixed(2)} (cap: ${caps.dpsPerSup.toFixed(2)})`;
+    g("qTank").parentElement.title = `HP per supply: ${hpPerSup.toFixed(1)} (cap: ${caps.hpPerSup.toFixed(1)})`;
+    g("qCost").parentElement.title = `Avg cost per supply: ${avgCostPerSup.toFixed(2)} (cap: ${caps.costPerSup.toFixed(2)})`;
+  }
+
 
   function refreshUnitOptions(){
     const sel = get("unitSelect");
@@ -714,10 +808,6 @@ function App(rootId){
   }
   function currentRace(){ return get("race").value; }
 
-  function togglesEffect(u){
-    return {mult,hpAdd,armorAdd,healMult,util};
-  }
-
   const tableWrap=root.querySelector("[data-id='unitTableWrap']"),
         tbody=root.querySelector("[data-id='tbody']");
 
@@ -730,15 +820,15 @@ function App(rootId){
     const uptimeF = Math.max(0, Math.min(100, Number(row.uptime ?? 100))) / 100;
     const effStreams = streams * uptimeF;
 
-    const eff = Math.max(0.1, Number(get("eff").value)||0.6);
+    // const eff = Math.max(0.1, Number(get("eff").value)||0.6);
 
     const cyclesPerMin = (u.t>0 ? (60/u.t) : 0) * effStreams;
     const m = u.m * cyclesPerMin;
     const g = u.g * cyclesPerMin;
 
     const base = baseDps(u), peak = maxDps(u);
-    const dpsPerUnit    = base * eff;
-    const dpsPerUnitMax = peak * eff;
+    const dpsPerUnit    = base;
+    const dpsPerUnitMax = peak;
 
     const dps    = dpsPerUnit    * effStreams;
     const dpsMax = dpsPerUnitMax * effStreams;
@@ -913,39 +1003,6 @@ function App(rootId){
   function setQ(el,val){el.style.width=(val*100).toFixed(0)+"%";}
   function setQV(el,val){el.textContent=Math.round(val*100);}
 
-  function renderQualities(summary, tgt){
-    const hpPerSup=(summary.sup>0)? summary.hp/summary.sup : 0;
-    const eHP = hpPerSup * (1 + summary.armor*0.6);
-
-    const eff = Math.max(0.1, Number(document.querySelector("[data-id='eff']").value) || 0.6);
-    const dpsPerSup = (summary.sup>0) ? (summary.dps * eff) / summary.sup : 0;
-
-    const utilFlags=["det","heals","clk","bur","aa","recall","scans","creep"];
-    const util = utilFlags.reduce((s,k)=>s+(summary.flags[k]?1:0),0)/utilFlags.length;
-
-    const totalUnits=tgt.reduce((s,x)=>s+x.count,0) || 1;
-    const avgMicro=tgt.reduce((s,x)=>s+(x.micro||3)*x.count,0)/totalUnits;
-    const diff = clamp01((avgMicro-1)/4);
-
-    const share=compShares(tgt);
-    const vuln = clamp01(0.5*share.light + 0.2*share.groundOnly + 0.3*share.lowAA);
-
-    const caps = GLOBAL_CAPS;
-    const tank   = clamp01( eHP / Math.max(1e-6, caps.tankPerSup) );
-    const dmg    = clamp01( dpsPerSup / Math.max(1e-6, caps.dmgPerSup) );
-
-    const costW  = summary.costW || 0;
-    const dpsW   = summary.dps * eff;
-    const ratio  = (costW>0) ? (dpsW / costW) : 0;
-    const costEf = clamp01( ratio / Math.max(1e-6, caps.costEffRatio) );
-
-    setQ(get("qTank"),tank); setQV(get("qTankV"),tank);
-    setQ(get("qDmg"),dmg);   setQV(get("qDmgV"),dmg);
-    setQ(get("qUtil"),util); setQV(get("qUtilV"),util);
-    setQ(get("qDiff"),diff); setQV(get("qDiffV"),diff);
-    setQ(get("qVuln"),vuln); setQV(get("qVulnV"),vuln);
-    setQ(get("qCost"),costEf); setQV(get("qCostV"),costEf);
-  }
 
   function compute(){
     recalcSupplyCap();
@@ -992,11 +1049,11 @@ function App(rootId){
       const info = unitLookup(r.name); if(!info) return null;
       const {u, race} = info;
       const uptimeF = Math.max(0, Math.min(100, Number(r.uptime ?? 100))) / 100;
-      const perMin  = (60/u.t) * (Number(r.count)||0) * uptimeF * scale;
-      const eff = Math.max(0.1, Number(get("eff").value)||0.6);
+      const perMin  = (u.t > 0 ? (60/u.t) : 0) * (Number(r.count)||0) * uptimeF * scale;
+      // const eff = Math.max(0.1, Number(get("eff").value)||0.6);
       const base = baseDps(u), peak = maxDps(u);
-      const dps = base * eff;
-      const dpsMax = peak * eff;
+      const dps = base;
+      const dpsMax = peak;
       const armor = u.armor;
       const hp = u.hp + u.sh;
       const costW = (u.m + u.g);
@@ -1080,9 +1137,13 @@ function App(rootId){
       <span class="comp">${compStr || "—"}</span>
     `;
     get("actualTotals").textContent = `HP ${hp.toLocaleString()} | Armor ${armorAvg.toFixed(2)}`;
-    setAFlags(det,bur,clk,aa,(get("race").value==="Protoss"),
-                   (get("race").value==="Terran"&&Number(get("orbitals").value)>0),
-                   (get("race").value==="Zerg"),heals);
+    setAFlags(
+      root, det, bur, clk, aa,
+      (get("race").value==="Protoss"),
+      (get("race").value==="Terran" && Number(get("orbitals").value)>0),
+      (get("race").value==="Zerg"),
+      heals
+    );
 
     const costW = tgt.reduce((s,x)=>s + x.costW*x.count,0);
     renderQualities({hp:hp,sup:usedS,dps:dps,armor:armorAvg,
@@ -1241,37 +1302,34 @@ function buildRight(){
   });
 }
 
-/* --------- Bars: keep same width across sides --------- */
 window._updateBars = function updateBars(){
   if (!window.L || !window.R) return;
-  const packs = [];
-  const lb = L && L.getBars && L.getBars();
-  if (lb) packs.push(lb);
-  if (!document.body.classList.contains('hideR')) {
-    const rb = R && R.getBars && R.getBars();
-    if (rb) packs.push(rb);
-  }
-  if (!packs.length) return;
-
-  const denomM = Math.max(1, ...packs.map(p => Math.max(p.m.income, p.m.spend)));
-  const denomG = Math.max(1, ...packs.map(p => Math.max(p.g.income, p.g.spend)));
 
   function setByDenom(income, spend, denom, incEl, spEl, overEl){
     const incPct  = Math.min(income/denom, 1) * 100;
     const spPct   = Math.min(spend/denom, 1)  * 100;
     const overPct = Math.max(0, (spend - income)/denom) * 100;
-
     incEl.style.width  = incPct.toFixed(2)+'%';
     spEl .style.width  = Math.min(spPct, incPct).toFixed(2)+'%';
     overEl.style.width = overPct.toFixed(2)+'%';
     overEl.style.left  = incPct.toFixed(2)+'%';
   }
 
-  packs.forEach(p=>{
+  [window.L, window.R].forEach(app=>{
+    // Skip the right app entirely when hidden
+    if (!app || (document.body.classList.contains('hideR') && app === window.R)) return;
+    const p = app.getBars?.();
+    if (!p) return;
+
+    // denom is computed from THIS side only
+    const denomM = Math.max(1, p.m.income, p.m.spend);
+    const denomG = Math.max(1, p.g.income, p.g.spend);
+
     setByDenom(p.m.income, p.m.spend, denomM, p.m.incEl, p.m.spEl, p.m.overEl);
     setByDenom(p.g.income, p.g.spend, denomG, p.g.incEl, p.g.spEl, p.g.overEl);
   });
 };
+
 
 /* --------- Equalize details heights (paired) --------- */
 function equalizeDetailHeights(){
