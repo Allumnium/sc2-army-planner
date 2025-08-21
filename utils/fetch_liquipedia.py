@@ -107,29 +107,38 @@ def estimate_micro(name: str) -> int:
     very_easy = {
         "zealot",
         "zergling",
-        "roach",
         "hellbat",
-        "adept",
         "immortal",
         "ultralisk",
-        "marauder",
     }
-    easy = {"marine", "stalker", "hydralisk", "colossus", "hellion", "archon"}
+    easy = {
+        "marine",
+        "hydralisk",
+        "colossus",
+        "archon",
+        "thor",
+        "roach",
+    }
     hard = {
         "banshee",
         "phoenix",
         "oracle",
         "ghost",
+        "adept",
         "widow mine",
-        "disruptor",
-        "raven",
-        "viper",
         "infestor",
         "sentry",
+        "stalker",
         "high templar",
+        "medivac",
+        "warp prism",
         "liberator",
+        "baneling",
+        "cyclone",
+        "reaper",
+        "siege tank",
     }
-    very_hard = {"mothership", "swarm host", "lurker", "carrier", "battlecruiser"}
+    very_hard = {"mothership", "swarm host", "lurker", "disruptor", "raven", "viper"}
     if n in very_hard:
         return 5
     if n in hard:
@@ -472,6 +481,11 @@ def apply_overrides(groups):
         wm["dpsMax"] = 15.0
         wm.setdefault("bonusDps", {})["shield"] = 22.0
         wm["pref"] = ["shield"]
+    P = groups["P"]
+    if "Archon" in P:
+        a = P["Archon"]
+        a["m"] = 100  # Archon cost is 100m + 300g for 2 Templar
+        a["g"] = 300
 
 
 def apply_splash_multiplier(groups):
