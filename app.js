@@ -1,4 +1,17 @@
+document.documentElement.classList.add("compact");
 window._bootLoading = false;
+// Force compact UI on both <html> and <body>, even if body isn't ready yet.
+(function forceCompact() {
+  document.documentElement.classList.add("compact");
+  if (document.body) {
+    document.body.classList.add("compact");
+  } else {
+    window.addEventListener("DOMContentLoaded", () =>
+      document.body.classList.add("compact")
+    );
+  }
+})();
+
 let T, P, Z;
 
 function saveToUrl() {
@@ -195,9 +208,13 @@ function _maxBonus(b) {
 function baseDps(u) {
   const g = Number(u.dpsG);
   const a = Number(u.dpsA);
-  if ((Number.isFinite(g) && g > 0) || (Number.isFinite(a) && a > 0)) {
-    return (g > 0 ? g : 0) + (a > 0 ? a : 0);
-  }
+  const gOk = Number.isFinite(g) && g > 0;
+  const aOk = Number.isFinite(a) && a > 0;
+
+  if (gOk && aOk) return (g + a) / 2; // ✅ average, not sum
+  if (gOk) return g;
+  if (aOk) return a;
+
   if (Number.isFinite(u.dps)) return Math.max(0, Number(u.dps));
   return 0;
 }
@@ -267,17 +284,17 @@ function flag(el, ok, label) {
   el.className = "pill " + (ok ? "okay" : "bad");
   el.textContent = `${label}: ${ok ? "yes" : "no"}`;
 }
-function setAFlags(rootNode, det, bur, clk, aa, recall, scans, creep, heals) {
-  const g = (id) => rootNode.querySelector(`[data-id="${id}"]`);
-  flag(g("aDetector"), det, "Detector");
-  flag(g("aBurrow"), bur, "Burrow");
-  flag(g("aCloak"), clk, "Cloak");
-  flag(g("aAA"), aa, "Anti-air");
-  flag(g("aRecall"), recall, "Recall");
-  flag(g("aScan"), scans, "Scans");
-  flag(g("aCreep"), creep, "Creep");
-  flag(g("aHeals"), heals, "Heals");
-}
+// function setAFlags(rootNode, det, bur, clk, aa, recall, scans, creep, heals) {
+//   const g = (id) => rootNode.querySelector(`[data-id="${id}"]`);
+//   flag(g("aDetector"), det, "Detector");
+//   flag(g("aBurrow"), bur, "Burrow");
+//   flag(g("aCloak"), clk, "Cloak");
+//   flag(g("aAA"), aa, "Anti-air");
+//   flag(g("aRecall"), recall, "Recall");
+//   flag(g("aScan"), scans, "Scans");
+//   flag(g("aCreep"), creep, "Creep");
+//   flag(g("aHeals"), heals, "Heals");
+// }
 
 /* =================== App factory =================== */
 function App(rootId) {
@@ -310,6 +327,7 @@ function App(rootId) {
   ]);
 
   // Bonus keys/labels used in DPS breakdowns
+
   const BONUS_KEY_MAP = {
     armored: "armored",
     armoured: "armored",
@@ -476,28 +494,71 @@ function App(rootId) {
 
     // --------- PER-SUPPLY DAMAGE TYPE BREAKDOWN (domains + bonuses) ----------
     // Build sums as DPS-per-supply
+    // Build sums as DPS-per-supply
     const typeSumsPS = new Map();
+
+    // "all" == average of present domains per unit, then sum per-supply
+    let allPS = 0;
+    tgt.forEach((x) => {
+      const cnt = Number(x.count) || 0;
+      if (!cnt) return;
+      const g = Number(x.dpsG) || 0;
+      const a = Number(x.dpsA) || 0;
+      const n = (g > 0 ? 1 : 0) + (a > 0 ? 1 : 0);
+      const avg = n ? (g + a) / n : 0;
+      allPS += (avg * cnt) / totalSup;
+    });
+    typeSumsPS.set("all", allPS);
+
+    // ✅ add domain bars
+    let groundPS = 0,
+      airPS = 0;
+    tgt.forEach((x) => {
+      const cnt = Number(x.count) || 0;
+      groundPS += ((Number(x.dpsG) || 0) * cnt) / totalSup;
+      airPS += ((Number(x.dpsA) || 0) * cnt) / totalSup;
+    });
+    typeSumsPS.set("ground", groundPS);
+    typeSumsPS.set("air", airPS);
 
     // Always include domains
     if (totalSup > 0) {
-      tgt.forEach((x) => {
-        if (x.count <= 0) return;
-        const gPS = (x.dpsG * x.count) / totalSup;
-        const aPS = (x.dpsA * x.count) / totalSup;
-        if (gPS > 0)
-          typeSumsPS.set("ground", (typeSumsPS.get("ground") || 0) + gPS);
-        if (aPS > 0) typeSumsPS.set("air", (typeSumsPS.get("air") || 0) + aPS);
-      });
+      const bonusTypes = [
+        "light",
+        "armored",
+        "bio",
+        "mech",
+        "massive",
+        "shields",
+        "structure",
+      ];
 
-      // Bonus types: if a unit has a preference tag, attribute its full DPS (per-supply) to that tag
+      // compute baseline once
+      let allPS = 0;
       tgt.forEach((x) => {
-        if (!Array.isArray(x.pref) || x.pref.length === 0 || x.count <= 0)
-          return;
-        const dPS = ((x.dpsG + x.dpsA) * x.count) / totalSup;
-        if (dPS <= 0) return;
-        x.pref.forEach((k) =>
-          typeSumsPS.set(k, (typeSumsPS.get(k) || 0) + dPS)
-        );
+        const cnt = Number(x.count) || 0;
+        const g = Number(x.dpsG) || 0,
+          a = Number(x.dpsA) || 0;
+        const n = (g > 0 ? 1 : 0) + (a > 0 ? 1 : 0);
+        const avg = n ? (g + a) / n : 0;
+        allPS += (avg * cnt) / totalSup;
+      });
+      typeSumsPS.set("all", allPS);
+
+      // bonus deltas per tag, then add to the same baseline
+      const bonusDelta = Object.fromEntries(bonusTypes.map((t) => [t, 0]));
+      tgt.forEach((x) => {
+        const cnt = Number(x.count) || 0;
+        if (!cnt) return;
+        const bd = x.bonusDps || {};
+        bonusTypes.forEach((ty) => {
+          const b = Number(bd[ty] || 0);
+          if (b > 0) bonusDelta[ty] += (b * cnt) / totalSup;
+        });
+      });
+      bonusTypes.forEach((ty) => {
+        const totalVsTy = allPS + (bonusDelta[ty] || 0);
+        if (totalVsTy > allPS + 1e-6) typeSumsPS.set(ty, totalVsTy);
       });
     }
 
@@ -516,8 +577,14 @@ function App(rootId) {
       all: "General DPS",
     };
 
+    const EPS = 1e-6;
+    const allVal = typeSumsPS.get("all") || 0;
+
     const entries = Array.from(typeSumsPS.entries())
-      .filter(([, v]) => v > 0)
+      .filter(([k, v]) => v > 0)
+      .filter(
+        ([k, v]) => k === "ground" || k === "air" || Math.abs(v - allVal) > EPS
+      ) // ✅ hide duplicates of "all"
       .sort((a, b) => b[1] - a[1]);
 
     const host = get("dpsBreakTypes") || get("dpsBreak");
@@ -1086,6 +1153,8 @@ function App(rootId) {
           : [];
         const prefNorm = prefArr.map(normBonusKey).filter(Boolean);
 
+        const bonusDps = normalizeBonusDpsMap(u.bonusDps || u.bonus || {});
+
         return {
           name: r.name,
           rate: perMin,
@@ -1105,6 +1174,7 @@ function App(rootId) {
           pref: prefNorm,
           cap: r.cap ?? null,
           race,
+          bonusDps,
         };
       })
       .filter(Boolean);
@@ -1190,6 +1260,18 @@ function App(rootId) {
       if (!hasAir && hasG) return { a: 0, g: total };
       if (hasAir && hasG) return { a: total, g: total }; // count fully in both bars
       return { a: 0, g: 0 };
+    }
+
+    function normalizeBonusDpsMap(bd) {
+      const out = {};
+      if (!bd) return out;
+      Object.entries(bd).forEach(([k, v]) => {
+        let key = normBonusKey(k); // armoured -> armored, building -> structure, etc.
+        if (!key) return;
+        if (key === "shield") key = "shields";
+        out[key] = Number(v) || 0;
+      });
+      return out;
     }
 
     function normBonusKey(k) {
@@ -1284,17 +1366,17 @@ function App(rootId) {
     get(
       "actualTotals"
     ).textContent = `HP ${hp.toLocaleString()} | Armor ${armorAvg.toFixed(2)}`;
-    setAFlags(
-      root,
-      det,
-      bur,
-      clk,
-      aa,
-      get("race").value === "Protoss",
-      get("race").value === "Terran" && Number(get("orbitals").value) > 0,
-      get("race").value === "Zerg",
-      heals
-    );
+    // setAFlags(
+    //   root,
+    //   det,
+    //   bur,
+    //   clk,
+    //   aa,
+    //   get("race").value === "Protoss",
+    //   get("race").value === "Terran" && Number(get("orbitals").value) > 0,
+    //   get("race").value === "Zerg",
+    //   heals
+    // );
 
     const costW = tgt.reduce((s, x) => s + x.costW * x.count, 0);
     renderQualities(
@@ -1641,16 +1723,16 @@ function syncDetails() {
   let data;
   console.log("Starting app...");
   try {
-    const resp = await fetch("data.min.json", { cache: "no-store" });
+    const resp = await fetch("unit_data.json", { cache: "no-store" });
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     data = await resp.json();
   } catch (e) {
-    fatal(`Could not load data.min.json (${e.message}).`);
+    fatal(`Could not load unit_data.json (${e.message}).`);
     return;
   }
 
   if (!data?.T || !data?.P || !data?.Z) {
-    fatal("data.min.json is missing one or more of: T, P, Z.");
+    fatal("unit_data.json is missing one or more of: T, P, Z.");
     return;
   }
 

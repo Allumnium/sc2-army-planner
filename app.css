@@ -256,6 +256,20 @@ th {
   background: #ff4d4d;
 } /* splash red */
 
+:root {
+  --qDmg: #ef4444; /* red-500 */
+  --qDmgAlt: #f87171; /* red-400 */
+}
+/* Quality: Damage */
+.qbar > i[data-id="qDmg"] {
+  background: linear-gradient(90deg, var(--qDmg), var(--qDmgAlt));
+}
+/* DPS breakdown bars */
+[data-id="dpsBreakTypes"] .qbar > i,
+[data-id="dpsBreak"] .qbar > i {
+  background: linear-gradient(90deg, var(--qDmg), var(--qDmgAlt));
+}
+
 .compList {
   display: flex;
   flex-wrap: wrap;

@@ -1,0 +1,8 @@
+- make the unit name editable in unit parameters
+- save unit parameter table changes as part of the build
+- color the total cost text
+- condense the url save data and make the build name part of the URL
+- get rid of the summary text
+- combine totals
+- get rid of Damage metric, just DPS vs bars
+- review or remove 'counterability' bars
