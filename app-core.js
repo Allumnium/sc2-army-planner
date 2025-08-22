@@ -45,9 +45,6 @@ export function App(rootId) {
     console.log("Rendering qualities for summary and target units");
     const totalUnits = tgt.reduce((s, x) => s + x.count, 0);
     const totalSup = tgt.reduce((s, x) => s + x.sup * x.count, 0);
-    const dpsPerSup = totalSup
-      ? tgt.reduce((s, x) => s + x.dps * x.count, 0) / totalSup
-      : 0;
     const hpPerSup = totalSup
       ? tgt.reduce((s, x) => s + x.hp * x.count, 0) / totalSup
       : 0;
@@ -200,8 +197,7 @@ export function App(rootId) {
     const host = get("dpsBreakTypes") || get("dpsBreak");
     if (host) {
       if (!entries.length) {
-        host.innerHTML =
-          "<div class='small muted'>No damage types present.</div>";
+        host.innerHTML = "";
       } else {
         host.innerHTML = entries
           .map(([k, vPS]) => {

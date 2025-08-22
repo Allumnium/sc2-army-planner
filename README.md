@@ -21,6 +21,11 @@ Plan steady-state production and visualize the army you can actually field at a 
 
 ---
 
+## Bugs
+
+- composition should be per supply
+- marines and ghosts (and likely all units) aren't shown as bio in composition
+
 ## Roadmap / Ideas
 
 - review 'counterability' bars
