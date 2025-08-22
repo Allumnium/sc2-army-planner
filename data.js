@@ -846,7 +846,7 @@ export const Z = {
     ]
   },
   "Brood Lord": {
-    "sup": 2.0,
+    "sup": 4,
     "m": 300.0,
     "g": 250.0,
     "t": 24.0,
@@ -949,7 +949,7 @@ export const Z = {
     "micro": 4
   },
   "Lurker": {
-    "sup": 1.0,
+    "sup": 3,
     "m": 150.0,
     "g": 150.0,
     "t": 18.0,

@@ -455,6 +455,12 @@ def apply_overrides(groups):
     if "Ravager" in Z:
         r = Z["Ravager"]
         r["sup"] = 3
+    if "Brood Lord" in Z:
+        r = Z["Brood Lord"]
+        r["sup"] = 4
+    if "Lurker" in Z:
+        r = Z["Lurker"]
+        r["sup"] = 3
     T = groups["T"]
     if "Widow Mine" in T:
         wm = T["Widow Mine"]
