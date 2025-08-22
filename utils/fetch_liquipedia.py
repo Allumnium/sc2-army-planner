@@ -1,5 +1,5 @@
 # utils/fetch_liquipedia.py
-# Scrape Liquipedia LotV unit tables -> unit_data.json
+# Scrape Liquipedia LotV unit tables -> data.js
 # No external deps. Python 3.8+.
 
 import os, re, json, gzip, sys, html
@@ -10,11 +10,11 @@ from html.parser import HTMLParser
 
 API = "https://liquipedia.net/starcraft2/api.php"
 PAGE_TITLE = "Unit_Statistics_(Legacy_of_the_Void)"
-USER_AGENT = "SC2-Planner/1.1 (contact: you@example.com)"
+USER_AGENT = "SC2-Planner/1.1 (https://allumnium.github.io/sc2-army-planner) (contact: grassblade-dev@gmail.com)"
 TIMEOUT = 30
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-OUT_PATH = os.path.join(ROOT_DIR, "unit_data.json")
+OUT_PATH = os.path.join(ROOT_DIR, "data.js")  # Changed to data.js
 TMP_DIR = os.path.join(ROOT_DIR, "tmp")
 os.makedirs(TMP_DIR, exist_ok=True)
 
@@ -351,10 +351,8 @@ def _parse_table_units(table_dict, race_code):
     headers = header_row_map(table_dict)
     if not looks_like_units_header(headers):
         return {}
-
     out = {}
     last_name = None
-
     for row in table_dict["rows"]:
         row_map = row_to_map(row, headers)
         candidate = first_text(row_map.get("name"))
@@ -362,15 +360,11 @@ def _parse_table_units(table_dict, race_code):
         if not name:
             continue
         if not candidate:
-            # continuation row
             pass
         else:
             last_name = name
-
-        # Skip obvious non-units if they ever appear in Name
         if candidate and is_blacklisted_unit(candidate):
             continue
-
         u = out.get(name)
         if not u:
             sup = first_number(row_map.get("supply"))
@@ -398,23 +392,17 @@ def _parse_table_units(table_dict, race_code):
                 "micro": estimate_micro(name),
             }
             out[name] = u
-
-        # DPS straight from table
         g_dps = first_number(row_map.get("g dps"))
         a_dps = first_number(row_map.get("a dps"))
         if g_dps:
             u["dpsG"] = max(u["dpsG"], g_dps)
         if a_dps:
             u["dpsA"] = max(u["dpsA"], a_dps)
-
-        # Attack strings for Splash detection & WM fallback
         g_attack = first_text(row_map.get("g attack"))
         a_attack = first_text(row_map.get("a attack"))
         attack_any = " ".join([g_attack, a_attack]).lower()
         if "splash" in attack_any:
             u["splash"] = True
-
-        # Widow Mine: table gives no DPS; take per-shot damage from attack cell
         if name.lower() == "widow mine":
             gm = first_number(g_attack, 0.0)
             am = first_number(a_attack, 0.0)
@@ -422,12 +410,8 @@ def _parse_table_units(table_dict, race_code):
                 u["dpsG"] = max(u["dpsG"], gm)
             if am:
                 u["dpsA"] = max(u["dpsA"], am)
-
-        # Recompute combined
         u["dps"] = max(u["dpsG"], u["dpsA"])
         u["dpsMax"] = u["dps"]
-
-        # Bonuses (DPS-style and hit-style text)
         bdps = parse_bonus_dps(row_map.get("bonus dps"))
         if bdps:
             store = u.setdefault("bonusDps", {})
@@ -440,7 +424,6 @@ def _parse_table_units(table_dict, race_code):
             for ty, val in bhit.items():
                 if ty not in store or val > store[ty]:
                     store[ty] = val
-
     return out
 
 
@@ -461,7 +444,6 @@ def apply_transform_costs(groups):
 def apply_overrides(groups):
     """Hardcode/patch known values."""
     Z = groups["Z"]
-    # Baneling fixed numbers per request
     if "Baneling" in Z:
         b = Z["Baneling"]
         b["dpsG"] = 16.0
@@ -473,9 +455,7 @@ def apply_overrides(groups):
     T = groups["T"]
     if "Widow Mine" in T:
         wm = T["Widow Mine"]
-        wm["dpsG"] = (
-            15.0  # shoots every 30 seconds. Substituting a reasonable dps value for sake of army power estimation.
-        )
+        wm["dpsG"] = 15.0
         wm["dpsA"] = 15.0
         wm["dps"] = 15.0
         wm["dpsMax"] = 15.0
@@ -484,7 +464,7 @@ def apply_overrides(groups):
     P = groups["P"]
     if "Archon" in P:
         a = P["Archon"]
-        a["m"] = 100  # Archon cost is 100m + 300g for 2 Templar
+        a["m"] = 100
         a["g"] = 300
 
 
@@ -504,9 +484,7 @@ def parse_units(html_str):
     """Parse all tables and return grouped dict {T:{},P:{},Z:{}} and a total count."""
     p = WikiTableParser()
     p.feed(html_str)
-
     groups = {"T": {}, "P": {}, "Z": {}}
-
     for tbl in p.tables:
         race = (tbl.get("race") or "").strip().lower()
         race_code = {"protoss": "P", "terran": "T", "zerg": "Z"}.get(race, "")
@@ -514,12 +492,9 @@ def parse_units(html_str):
             continue
         units = _parse_table_units(tbl, race_code)
         groups[race_code].update(units)
-
-    # post-processing passes
     apply_transform_costs(groups)
     apply_overrides(groups)
     apply_splash_multiplier(groups)
-
     total = sum(len(bucket) for bucket in groups.values())
     return groups, total
 
@@ -533,8 +508,14 @@ def main():
         print(f"See {os.path.join(TMP_DIR, 'liquipedia_units.html')} for the raw HTML.")
         sys.exit(1)
 
+    # Format output as a JavaScript file
+    js_output = f"""
+export const T = {json.dumps(data['T'], indent=2)};
+export const P = {json.dumps(data['P'], indent=2)};
+export const Z = {json.dumps(data['Z'], indent=2)};
+"""
     with open(OUT_PATH, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, separators=(",", ":"))
+        f.write(js_output)
 
     print(f"Wrote {OUT_PATH} with {count} units.")
 
