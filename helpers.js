@@ -77,7 +77,7 @@ export function decodeState(token) {
 const DEF = {
   bases: 1,
   orbitals: 0,
-  workersPerBase: 16,
+  workersPerBase: 22,
   mineralsPerPatch: 1500,
   gasPerGeyserBank: 2250,
   gasPerGeyserMin: 160,
