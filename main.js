@@ -1,5 +1,5 @@
 import { App } from "./app-core.js";
-import { normalizeAll } from "./helpers.js";
+import { normalizeAll, encodeState, decodeState } from "./helpers.js";
 
 function fatal(msg) {
   console.error("[SC2 Planner] " + msg);
@@ -11,31 +11,6 @@ function fatal(msg) {
   div.style.background = "#1a0f12";
   div.innerHTML = `<div class="big" style="color:var(--danger)">Data error</div><div class="small">${msg}</div>`;
   main.prepend(div);
-}
-
-function encodeState() {
-  console.log("Encoding state for URL");
-  const s = {
-    title: (document.getElementById("buildNameGlobal")?.value || "").trim(),
-    L: L.getState(),
-    R: R.getState(),
-    unitData: window.unitData || {},
-    showR: !document.body.classList.contains("hideR"),
-  };
-  return btoa(unescape(encodeURIComponent(JSON.stringify(s))));
-}
-
-function decodeState(s) {
-  console.log("Decoding state from URL");
-  try {
-    const state = JSON.parse(decodeURIComponent(escape(atob(s))));
-    if (state.unitData) {
-      window.unitData = state.unitData;
-    }
-    return state;
-  } catch {
-    return null;
-  }
 }
 
 function buildRight() {
@@ -145,7 +120,7 @@ function syncDetails() {
   window._saveState = function () {
     const b = encodeState();
     console.log("Saving state to URL:", b);
-    history.replaceState(null, "", "#s=" + b);
+    history.replaceState(null, "", b);
   };
 
   if (window._updateBars) window._updateBars();
@@ -171,7 +146,7 @@ function syncDetails() {
 
   (function loadFromUrl() {
     console.log("Loading state from URL...");
-    const m = location.hash.match(/#s=([^]+)/);
+    const m = location.hash.match(/([^]+)/);
     const cb = document.getElementById("toggleTeam2");
     const defaultShowR = false;
     if (!m) {

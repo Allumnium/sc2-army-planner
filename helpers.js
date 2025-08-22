@@ -1,7 +1,244 @@
 import { T, P, Z } from "./data.js";
-
 export const GLOBAL_CAPS = computeCapsOnce(T, P, Z);
 export const BAR_MAX_SEC = computeBarMaxSec(T, P, Z);
+
+// Race codes
+const RACE_TO_CODE = { Terran: 0, Protoss: 1, Zerg: 2 };
+const CODE_TO_RACE = ["Terran", "Protoss", "Zerg"];
+
+// Per-race unit dictionaries (stable order = Object.keys as shipped)
+const UNITS_BY_CODE = [Object.keys(T), Object.keys(P), Object.keys(Z)];
+const NAME_TO_ID = UNITS_BY_CODE.map((list) => {
+  const m = Object.create(null);
+  list.forEach((n, i) => (m[n] = i));
+  return m;
+});
+export function encodeState() {
+  const title = (
+    document.getElementById("buildNameGlobal")?.value || ""
+  ).trim();
+  const Lstate = window.L.getState(); // <-- use window.
+  const Rstate = window.R.getState(); // <-- use window.
+  const showR = !document.body.classList.contains("hideR");
+  const includeR = showR || Rstate?.rows?.length > 0;
+
+  // Build binary payload (your existing code)
+  const bytes = [];
+  bytes.push(1); // version
+  const hasTitle = title.length > 0;
+  const flags = (includeR ? 1 : 0) | (hasTitle ? 2 : 0);
+  bytes.push(flags);
+
+  if (hasTitle) {
+    const tb = te.encode(title);
+    pushVarint(bytes, tb.length);
+    for (let i = 0; i < tb.length; i++) bytes.push(tb[i]);
+  }
+
+  bytes.push(
+    ...sideToBinary(Lstate, RACE_TO_CODE[Lstate.race] ?? 0, NAME_TO_ID)
+  );
+  if (includeR) {
+    bytes.push(
+      ...sideToBinary(Rstate, RACE_TO_CODE[Rstate.race] ?? 0, NAME_TO_ID)
+    );
+  }
+
+  // Compress + base64url (all sync now)
+  const compressed = deflateRaw(new Uint8Array(bytes));
+  return b64urlFromBytes(compressed);
+}
+export function decodeState(token) {
+  const raw = inflateRaw(bytesFromB64url(token)); // Uint8Array
+  const view = raw;
+  const idx = { i: 0 };
+
+  const ver = view[idx.i++];
+  if (ver !== 1) throw new Error("Unknown share version");
+  const flags = view[idx.i++] | 0;
+  const includeR = !!(flags & 1);
+  const hasTitle = !!(flags & 2);
+
+  let title = "";
+  if (hasTitle) {
+    const len = readVarint(view, idx) | 0;
+    title = td.decode(view.slice(idx.i, idx.i + len));
+    idx.i += len;
+  }
+
+  const Lc = sideFromBinary(view, idx, UNITS_BY_CODE);
+  const Rc = includeR
+    ? sideFromBinary(view, idx, UNITS_BY_CODE)
+    : { race: "Terran", rows: [] };
+  return { title, showR: includeR, L: Lc, R: Rc };
+}
+
+// Defaults matching your UI
+const DEF = {
+  bases: 1,
+  orbitals: 0,
+  workersPerBase: 16,
+  mineralsPerPatch: 1500,
+  gasPerGeyserBank: 2250,
+  gasPerGeyserMin: 160,
+  muleYield: 225,
+  secTo50d: 889, // 88.9 s -> deciseconds
+  actualSupply: 120,
+  resM: 0,
+  resG: 0,
+};
+// Fixed field order + mapper
+const FIELDS = [
+  ["bases", "u"],
+  ["orbitals", "u"],
+  ["workersPerBase", "u"],
+  ["mineralsPerPatch", "u"],
+  ["gasPerGeyserBank", "u"],
+  ["gasPerGeyserMin", "u"],
+  ["muleYield", "u"],
+  ["secTo50d", "u"],
+  ["actualSupply", "u"],
+  ["resM", "u"],
+  ["resG", "u"],
+];
+
+function sideToBinary(S, raceCode, unitNameToId) {
+  // Bitmask of fields that differ from defaults
+  let mask = 0;
+  const values = [];
+  const secTo50d = Math.round((S.secTo50 ?? 88.9) * 10);
+  const src = { ...S, secTo50d };
+
+  FIELDS.forEach(([k], i) => {
+    const v = src[k] ?? DEF[k];
+    if (v !== DEF[k]) {
+      mask |= 1 << i;
+      values.push(v - DEF[k]);
+    }
+  });
+
+  // Rows: [id, count, flags, (uptime), (cap)]
+  // flags bit0 = has uptime (!=100), bit1 = has cap (not null)
+  const rows = S.rows || [];
+  const out = [];
+  pushVarint(out, raceCode);
+  pushVarint(out, mask >>> 0);
+  values.forEach((d) => pushVarint(out, zz(d | 0)));
+  pushVarint(out, rows.length);
+  const rc = raceCode | 0;
+
+  rows.forEach((r) => {
+    const id = unitNameToId[rc][r.name];
+    const cnt = r.count | 0;
+    const up = r.uptime == null ? 100 : r.uptime | 0;
+    const hasU = up !== 100;
+    const hasC = r.cap != null;
+    const flags = (hasU ? 1 : 0) | (hasC ? 2 : 0);
+    pushVarint(out, id | 0);
+    pushVarint(out, cnt);
+    pushVarint(out, flags);
+    if (hasU) pushVarint(out, up);
+    if (hasC) pushVarint(out, r.cap | 0);
+  });
+  return out;
+}
+
+function sideFromBinary(view, idx, unitNamesByCode) {
+  const rc = readVarint(view, idx) | 0;
+  const mask = readVarint(view, idx) >>> 0;
+  const side = {
+    race: CODE_TO_RACE[rc] || "Terran",
+    bases: DEF.bases,
+    orbitals: DEF.orbitals,
+    workersPerBase: DEF.workersPerBase,
+    mineralsPerPatch: DEF.mineralsPerPatch,
+    gasPerGeyserBank: DEF.gasPerGeyserBank,
+    gasPerGeyserMin: DEF.gasPerGeyserMin,
+    muleYield: DEF.muleYield,
+    secTo50: DEF.secTo50d / 10,
+    actualSupply: DEF.actualSupply,
+    resM: DEF.resM,
+    resG: DEF.resG,
+    rows: [],
+  };
+  // Apply deltas where bits set
+  FIELDS.forEach(([k], i) => {
+    if (mask & (1 << i)) {
+      const delta = unzz(readVarint(view, idx) | 0);
+      if (k === "secTo50d") side.secTo50 = (DEF.secTo50d + delta) / 10;
+      else side[k] = DEF[k] + delta;
+    }
+  });
+
+  const nRows = readVarint(view, idx) | 0;
+  const names = unitNamesByCode[rc] || unitNamesByCode[0];
+  for (let i = 0; i < nRows; i++) {
+    const id = readVarint(view, idx) | 0;
+    const count = readVarint(view, idx) | 0;
+    const flags = readVarint(view, idx) | 0;
+    let uptime = 100,
+      cap = null;
+    if (flags & 1) uptime = readVarint(view, idx) | 0;
+    if (flags & 2) cap = readVarint(view, idx) | 0;
+    side.rows.push({ name: names[id] || names[0], count, uptime, cap });
+  }
+  return side;
+}
+
+// === Binary + DEFLATE helpers ===
+const te = new TextEncoder();
+const td = new TextDecoder();
+
+// base64url <-> bytes (no padding)
+function b64urlFromBytes(bytes) {
+  let bin = "";
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+function bytesFromB64url(s) {
+  s = s.replace(/-/g, "+").replace(/_/g, "/");
+  while (s.length % 4) s += "=";
+  const bin = atob(s);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+// varint (unsigned) + zigzag for signed
+function zz(n) {
+  return (n << 1) ^ (n >> 31);
+} // signed -> unsigned
+function unzz(n) {
+  return (n >>> 1) ^ -(n & 1);
+} // unsigned -> signed
+function pushVarint(arr, n) {
+  n >>>= 0;
+  while (n >= 0x80) {
+    arr.push((n & 0x7f) | 0x80);
+    n >>>= 7;
+  }
+  arr.push(n);
+}
+function readVarint(view, idx) {
+  let x = 0,
+    s = 0,
+    b;
+  do {
+    b = view[idx.i++];
+    x |= (b & 0x7f) << s;
+    s += 7;
+  } while (b & 0x80);
+  return x >>> 0;
+}
+
+// --- Synchronous DEFLATE via pako ---
+function deflateRaw(bytes) {
+  // bytes: Uint8Array
+  return window.pako.deflateRaw(bytes); // -> Uint8Array
+}
+function inflateRaw(bytes) {
+  return window.pako.inflateRaw(bytes); // -> Uint8Array
+}
 
 const tag2attr = (t) => {
   const map = {
