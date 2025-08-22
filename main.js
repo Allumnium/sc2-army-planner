@@ -1,5 +1,6 @@
 import { App } from "./app-core.js";
 import { normalizeAll, encodeState, decodeState } from "./helpers.js";
+import { presets } from "./presets.js";
 
 function fatal(msg) {
   console.error("[SC2 Planner] " + msg);
@@ -116,6 +117,60 @@ function syncDetails() {
   buildRight();
   window.L = App("sideL");
   window.R = App("sideR");
+
+  // Populate the "Preset Builds" dropdown and wire loading
+  const presetSel = document.getElementById("presetSelect");
+  if (presetSel) {
+    // Fill options
+    Object.entries(presets).forEach(([name, urlOrHash]) => {
+      const opt = document.createElement("option");
+      opt.value = urlOrHash;
+      opt.textContent = name;
+      presetSel.appendChild(opt);
+    });
+
+    // Load when selected
+    presetSel.addEventListener("change", () => {
+      const sel = presetSel.value;
+      if (!sel) return;
+
+      // Extract token from either a full URL or a "#token"
+      const token = sel.includes("#") ? sel.split("#").pop() : sel;
+
+      try {
+        const parsed = decodeState(token);
+        if (!parsed || !parsed.L || !parsed.R)
+          throw new Error("Bad preset payload");
+
+        // Apply title + Team 2 visibility
+        const titleEl = document.getElementById("buildNameGlobal");
+        if (titleEl)
+          titleEl.value =
+            parsed.title || presetSel.selectedOptions[0]?.text || "";
+
+        const showR = !!parsed.showR;
+        document.body.classList.toggle("hideR", !showR);
+        const cb = document.getElementById("toggleTeam2");
+        if (cb) cb.checked = showR;
+
+        // Apply both sides; setState will refresh UI and trigger a save
+        window.L.setState(parsed.L);
+        window.R.setState(parsed.R);
+
+        // Put the preset token in the address bar
+        history.replaceState(null, "", "#" + token);
+
+        // Refresh bars/height if needed
+        if (window._updateBars) window._updateBars();
+        if (typeof window.equalizeDetailHeights === "function") {
+          requestAnimationFrame(window.equalizeDetailHeights);
+        }
+      } catch (e) {
+        console.error("Failed to load preset:", e);
+        alert("Sorry, that preset link is invalid or from another version.");
+      }
+    });
+  }
 
   window._saveState = function () {
     const b = encodeState();

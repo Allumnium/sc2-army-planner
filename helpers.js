@@ -385,23 +385,7 @@ export function clamp01(x) {
   return Math.max(0, Math.min(1, x));
 }
 
-export function baseDps(u) {
-  const g = Number(u.dpsG);
-  const a = Number(u.dpsA);
-  const gOk = Number.isFinite(g) && g > 0;
-  const aOk = Number.isFinite(a) && a > 0;
-  if (gOk && aOk) return (g + a) / 2;
-  if (gOk) return g;
-  if (aOk) return a;
-  if (Number.isFinite(u.dps)) return Math.max(0, Number(u.dps));
-  return 0;
-}
-
-export function maxDps(u) {
-  return Number.isFinite(u.dpsMax) ? Math.max(0, Number(u.dpsMax)) : baseDps(u);
-}
-
-export function computeCapsOnce(T, P, Z) {
+function computeCapsOnce(T, P, Z) {
   let dpsPerSupMax = 0;
   let hpPerSupMax = 0;
   let costPerSupMax = 0;
@@ -409,9 +393,9 @@ export function computeCapsOnce(T, P, Z) {
   [T, P, Z].forEach((U) => {
     Object.values(U).forEach((u) => {
       const sup = Math.max(1e-6, u.sup || 1);
-      const dpsPerSup = baseDps(u) / sup;
       const hpPerSup = ((Number(u.hp) || 0) + (Number(u.sh) || 0)) / sup;
       const cpsU = ((Number(u.m) || 0) + (Number(u.g) || 0)) / sup;
+      const dpsPerSup = (Number(u.dps) || 0) / sup;
       if (dpsPerSup > dpsPerSupMax) dpsPerSupMax = dpsPerSup;
       if (hpPerSup > hpPerSupMax) hpPerSupMax = hpPerSup;
       if (cpsU > costPerSupMax) costPerSupMax = cpsU;
@@ -424,7 +408,7 @@ export function computeCapsOnce(T, P, Z) {
   };
 }
 
-export function computeBarMaxSec(T, P, Z) {
+function computeBarMaxSec(T, P, Z) {
   let tMax = 0,
     supForMax = 1;
   [T, P, Z].forEach((U) => {
@@ -478,44 +462,8 @@ export function normalizeBonusDpsMap(bd) {
   return out;
 }
 
-export const PREF_TO_LABEL = {
-  ground: "DPS vs Ground",
-  air: "DPS vs Air",
-  light: "DPS vs Light",
-  armored: "DPS vs Armored",
-  bio: "DPS vs Biological",
-  mech: "DPS vs Mechanical",
-  massive: "DPS vs Massive",
-  psionic: "DPS vs Psionic",
-  structure: "DPS vs Structures",
-  clumps: "DPS vs Clumped",
-  all: "General DPS",
-};
-
-export function buildAppliesFn(spec, U) {
-  if (!spec) return () => false;
-  const tests = [];
-  if (Array.isArray(spec.units) && spec.units.length) {
-    const arr = spec.units.map((n) => U[n]).filter(Boolean);
-    tests.push((u) => arr.includes(u));
-  }
-  if (Array.isArray(spec.tagsAny) && spec.tagsAny.length) {
-    tests.push((u) => (u.tags || []).some((t) => spec.tagsAny.includes(t)));
-  }
-  if (Array.isArray(spec.attrsAny) && spec.attrsAny.length) {
-    tests.push((u) => (u.attrs || []).some((a) => spec.attrsAny.includes(a)));
-  }
-  if (Array.isArray(spec.attrsAll) && spec.attrsAll.length) {
-    tests.push((u) => spec.attrsAll.every((a) => (u.attrs || []).includes(a)));
-  }
-  if (Array.isArray(spec.attrsNot) && spec.attrsNot.length) {
-    tests.push((u) => !(u.attrs || []).some((a) => spec.attrsNot.includes(a)));
-  }
-  return (u) => tests.every((fn) => fn(u));
-}
-
 export function domainDpsForUnit(u, name) {
-  const total = baseDps(u);
+  const total = u.dps;
   const gExplicit = Number(u.dpsG);
   const aExplicit = Number(u.dpsA);
   const hasExplicit =

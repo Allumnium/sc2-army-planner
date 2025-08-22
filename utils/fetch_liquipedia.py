@@ -446,19 +446,19 @@ def apply_overrides(groups):
     Z = groups["Z"]
     if "Baneling" in Z:
         b = Z["Baneling"]
-        b["dpsG"] = 16.0
+        b["dpsG"] = 8.0
         b["dpsA"] = 0.0
-        b["dps"] = 16.0
-        b["dpsMax"] = 16.0
+        b["dps"] = 8.0
+        b["dpsMax"] = 8.0
         b.setdefault("bonusDps", {})["light"] = 19.0
         b["pref"] = ["light"]
     T = groups["T"]
     if "Widow Mine" in T:
         wm = T["Widow Mine"]
-        wm["dpsG"] = 15.0
-        wm["dpsA"] = 15.0
-        wm["dps"] = 15.0
-        wm["dpsMax"] = 15.0
+        wm["dpsG"] = 10.0
+        wm["dpsA"] = 10.0
+        wm["dps"] = 10.0
+        wm["dpsMax"] = 10.0
         wm.setdefault("bonusDps", {})["shield"] = 22.0
         wm["pref"] = ["shield"]
     P = groups["P"]

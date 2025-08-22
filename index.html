@@ -91,18 +91,33 @@
     </noscript>
     <main class="wrap" id="main">
       <div class="card" style="margin-bottom: 10px">
-        <div class="row" style="justify-content: space-between">
+        <div
+          class="row buildHeader"
+          style="
+            align-items: center;
+            justify-content: flex-start;
+            gap: 8px;
+            flex-wrap: wrap;
+          "
+        >
           <input
             class="buildName"
             id="buildNameGlobal"
             type="text"
             placeholder="Build name"
+            style="flex: 0 0 auto; max-width: 280px"
           />
+          <label for="presetSelect" class="small">Preset Builds:</label>
+          <select id="presetSelect">
+            <option value="">— select —</option>
+          </select>
         </div>
+
         <label class="row small" style="margin-top: 6px">
           <input type="checkbox" id="toggleTeam2" /> Show Team 2
         </label>
       </div>
+
       <div class="dual">
         <div class="side" id="sideL" aria-label="Team 1">
           <div class="sideHeader"><h3 class="sideTitle">Team 1</h3></div>
@@ -249,17 +264,10 @@
                   <tr>
                     <th
                       class="row"
-                      style="gap: 8px; justify-content: flex-begin"
+                      style="gap: 8px; justify-content: flex-start"
                     >
                       <button data-id="addRow" type="button">＋</button>
                     </th>
-                    <th></th>
-                    <th>Total</th>
-                    <th class="right" data-id="uStreams">0</th>
-                    <th class="right" data-id="uUptimeAvg">—</th>
-                    <th class="right" data-id="uCapCount">—</th>
-                    <th class="right" data-id="uMin">0</th>
-                    <th class="right" data-id="uGas">0</th>
                   </tr>
                 </tfoot>
               </table>

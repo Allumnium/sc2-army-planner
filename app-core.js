@@ -1,15 +1,12 @@
 import { T, P, Z } from "./data.js";
 import {
   unitLookup,
-  baseDps,
-  maxDps,
   canUnitHitAir,
   canUnitHitGround,
   clamp01,
   normalizeBonusDpsMap,
   normBonusKey,
   domainDpsForUnit,
-  PREF_TO_LABEL,
   GLOBAL_CAPS,
   BAR_MAX_SEC,
 } from "./helpers.js";
@@ -208,8 +205,7 @@ export function App(rootId) {
       } else {
         host.innerHTML = entries
           .map(([k, vPS]) => {
-            const label =
-              PREF_TO_LABEL[k] || "DPS vs " + k[0].toUpperCase() + k.slice(1);
+            const label = "Avg DPS vs  " + k[0].toUpperCase() + k.slice(1);
             const pct = clamp01(vPS / Math.max(1e-6, caps.dpsPerSup)) * 100;
             return `
             <div class="qrow">
@@ -314,8 +310,8 @@ export function App(rootId) {
           <tr>
             <th>Unit</th><th>Sup</th><th>HP</th><th>Sh</th><th>Armor</th>
             <th>Build s</th><th>Minerals</th><th>Gas</th>
-            <th class="right" title="Damage vs ground targets">DPS vs Ground</th>
-            <th class="right" title="Damage vs air targets">DPS vs Air</th>
+            <th class="right" title="Damage vs ground targets">Damage vs  Ground</th>
+            <th class="right" title="Damage vs air targets">Damage vs  Air</th>
             <th class="right" title="Total DPS (not doubled)">DPS</th>
             <th>Micro</th>
           </tr>
@@ -371,15 +367,9 @@ export function App(rootId) {
     const cyclesPerMin = (u.t > 0 ? 60 / u.t : 0) * effStreams;
     const m = u.m * cyclesPerMin;
     const g = u.g * cyclesPerMin;
-    const base = baseDps(u),
-      peak = maxDps(u);
-    const dpsPerUnit = base;
-    const dpsPerUnitMax = peak;
-    const dps = dpsPerUnit * effStreams;
-    const dpsMax = dpsPerUnitMax * effStreams;
     const armor = u.armor;
     const hpUnit = u.hp + u.sh;
-    return { m, g, dps, dpsMax, armor, hpUnit, dpsPerUnit, effStreams };
+    return { m, g, armor, hpUnit, effStreams };
   }
 
   const supElInit = get("actualSupply");
@@ -431,21 +421,11 @@ export function App(rootId) {
     const tbody = root.querySelector("[data-id='tbody']");
     if (!tbody) return;
     tbody.innerHTML = "";
-    let sumM = 0,
-      sumG = 0,
-      sumStreams = 0;
-    let sumUptime = 0,
-      sumCap = 0;
     state.rows.forEach((r, i) => {
       const info = unitLookup(r.name);
       if (!info) return;
       const { u, race } = info;
       const spend = spendAndDps(u, r);
-      sumM += spend.m;
-      sumG += spend.g;
-      sumStreams += Number(r.count) || 0;
-      sumUptime += r.uptime ?? 100;
-      if (r.cap != null) sumCap += Number(r.cap) || 0;
       const tr = document.createElement("tr");
       if (!tr) return;
       tr.className =
@@ -551,12 +531,6 @@ export function App(rootId) {
     const tableWrap = root.querySelector("[data-id='unitTableWrap']");
     const anyRows = state.rows.length > 0;
     if (anyRows) tableWrap.style.display = "block";
-    get("uStreams").textContent = sumStreams;
-    get("uUptimeAvg").textContent =
-      (state.rows.length ? Math.round(sumUptime / state.rows.length) : 0) + "%";
-    get("uCapCount").textContent = sumCap > 0 ? sumCap : "—";
-    get("uMin").textContent = Math.round(sumM);
-    get("uGas").textContent = Math.round(sumG);
     compute();
     if (typeof window._saveState === "function") window._saveState();
     if (typeof window.equalizeDetailHeights === "function")
@@ -600,18 +574,31 @@ export function App(rootId) {
     const bases = Number(get("bases").value) || 0;
     const mIncome = bases * satMineralsPerBase() + muleIncomePerMinute();
     const gIncome = bases * satGasPerBase();
-    const mArmy = Number(get("uMin").textContent) || 0;
-    const gArmy = Number(get("uGas").textContent) || 0;
+
+    // New calculation for total army minerals and gas
+    let mArmy = 0;
+    let gArmy = 0;
+    state.rows.forEach((r) => {
+      const info = unitLookup(r.name);
+      if (!info) return;
+      const { u } = info;
+      const spend = spendAndDps(u, r);
+      mArmy += spend.m;
+      gArmy += spend.g;
+    });
+
     const techM = Math.max(0, Number(get("resM")?.value) || 0);
     const techG = Math.max(0, Number(get("resG")?.value) || 0);
     const mTotalSpend = mArmy + techM;
     const gTotalSpend = gArmy + techG;
+
     get("numMinInc").textContent = Math.round(mIncome) + "m";
     get("numMinSp").textContent = Math.round(mArmy) + "m";
     get("numMinTech").textContent = Math.round(techM) + "m";
     get("numGasInc").textContent = Math.round(gIncome) + "g";
     get("numGasSp").textContent = Math.round(gArmy) + "g";
     get("numGasTech").textContent = Math.round(techG) + "g";
+
     state._bars = {
       m: {
         income: mIncome,
@@ -644,8 +631,6 @@ export function App(rootId) {
           Math.max(0, Math.min(100, Number(r.uptime ?? 100))) / 100;
         const perMin =
           (u.t > 0 ? 60 / u.t : 0) * (Number(r.count) || 0) * uptimeF;
-        const base = baseDps(u),
-          peak = maxDps(u);
         const dom = domainDpsForUnit(u, r.name);
         const prefArr = Array.isArray(u.pref)
           ? u.pref
@@ -659,8 +644,6 @@ export function App(rootId) {
           rate: perMin,
           sup: u.sup,
           hp: u.hp + u.sh,
-          dps: base,
-          dpsMax: peak,
           dpsG: dom.g,
           dpsA: dom.a,
           armor: u.armor,
