@@ -9,9 +9,9 @@ import {
   normalizeBonusDpsMap,
   normBonusKey,
   domainDpsForUnit,
-  computeCapsOnce,
-  computeBarMaxSec,
   PREF_TO_LABEL,
+  GLOBAL_CAPS,
+  BAR_MAX_SEC,
 } from "./helpers.js";
 
 /* =================== App factory =================== */
@@ -20,8 +20,6 @@ export function App(rootId) {
   const root = document.getElementById(rootId);
   const get = (key) => root.querySelector(`[data-id="${key}"]`);
   const state = { rows: [], supAuto: true };
-  let GLOBAL_CAPS = computeCapsOnce(T, P, Z);
-  let BAR_MAX_SEC = 15 * 60;
 
   function raceData() {
     console.log("Getting race data");
@@ -119,8 +117,6 @@ export function App(rootId) {
     const g = (k) => root.querySelector(`[data-id="${k}"]`);
     setQ(g("qTank"), clamp01(hpPerSup / Math.max(1e-6, caps.hpPerSup)));
     setQV(g("qTankV"), clamp01(hpPerSup / Math.max(1e-6, caps.hpPerSup)));
-    setQ(g("qDmg"), clamp01(dpsPerSup / Math.max(1e-6, caps.dpsPerSup)));
-    setQV(g("qDmgV"), clamp01(dpsPerSup / Math.max(1e-6, caps.dpsPerSup)));
     setQ(g("qUtil"), util);
     setQV(g("qUtilV"), util);
     setQ(g("qDiff"), diff);
@@ -132,9 +128,6 @@ export function App(rootId) {
       g("qCostV"),
       clamp01(avgCostPerSup / Math.max(1e-6, caps.costPerSup))
     );
-    g("qDmg").parentElement.title = `DPS per supply: ${dpsPerSup.toFixed(
-      2
-    )} (cap: ${caps.dpsPerSup.toFixed(2)})`;
     g("qTank").parentElement.title = `HP per supply: ${hpPerSup.toFixed(
       1
     )} (cap: ${caps.hpPerSup.toFixed(1)})`;
@@ -353,8 +346,6 @@ export function App(rootId) {
             total.toFixed(1);
           U[name].dps = total;
         }
-        GLOBAL_CAPS = computeCapsOnce();
-        BAR_MAX_SEC = computeBarMaxSec();
         renderRows();
         compute();
         if (typeof window._saveState === "function") window._saveState();
@@ -638,17 +629,11 @@ export function App(rootId) {
       },
     };
     if (window._updateBars) requestAnimationFrame(window._updateBars);
-    const mAvail = Math.max(0, mIncome - techM);
-    const gAvail = Math.max(0, gIncome - techG);
-    const scale =
-      mAvail > 0 || gAvail > 0
-        ? Math.min(mAvail / (mArmy || 1), gAvail / (gArmy || 1), 1)
-        : 0;
-    computeActualArmy(scale);
+
+    computeActualArmy();
   }
 
-  function computeActualArmy(scale) {
-    console.log("Computing actual army with scale", scale);
+  function computeActualArmy() {
     const S = Number(get("actualSupply").value) || 0;
     const items = state.rows
       .map((r) => {
@@ -658,7 +643,7 @@ export function App(rootId) {
         const uptimeF =
           Math.max(0, Math.min(100, Number(r.uptime ?? 100))) / 100;
         const perMin =
-          (u.t > 0 ? 60 / u.t : 0) * (Number(r.count) || 0) * uptimeF * scale;
+          (u.t > 0 ? 60 / u.t : 0) * (Number(r.count) || 0) * uptimeF;
         const base = baseDps(u),
           peak = maxDps(u);
         const dom = domainDpsForUnit(u, r.name);
@@ -777,11 +762,12 @@ export function App(rootId) {
       totalM += (Number(Ux.m) || 0) * x.count;
       totalG += (Number(Ux.g) || 0) * x.count;
     });
-    const totalCostEl = get("totalCost");
-    if (totalCostEl)
-      totalCostEl.textContent = `${Math.round(
-        totalM
-      ).toLocaleString()}m / ${Math.round(totalG).toLocaleString()}g`;
+    const totalCostMinsEl = get("totalCostMin");
+    if (totalCostMinsEl)
+      totalCostMinsEl.textContent = `${Math.round(totalM).toLocaleString()}m`;
+    const totalCostGasEl = get("totalCostGas");
+    if (totalCostGasEl)
+      totalCostGasEl.textContent = `${Math.round(totalG).toLocaleString()}g`;
     const usedS = tgt.reduce((s, x) => s + x.count * x.sup, 0);
     const totalUnits = tgt.reduce((s, x) => s + x.count, 0);
     const hp = tgt.reduce((s, x) => s + x.hp * x.count, 0);

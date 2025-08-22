@@ -230,9 +230,6 @@ th {
 .qbar > i[data-id="qTank"] {
   background: var(--qTank);
 }
-.qbar > i[data-id="qDmg"] {
-  background: linear-gradient(90deg, var(--qDmg), var(--qDmgAlt));
-}
 .qbar > i[data-id="qUtil"] {
   background: var(--qUtil);
 }

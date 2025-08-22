@@ -1,6 +1,5 @@
 import { App } from "./app-core.js";
-import { normalizeAll, computeCapsOnce, computeBarMaxSec } from "./helpers.js";
-import { T, P, Z } from "./data.js"; // This is the new import statement.
+import { normalizeAll } from "./helpers.js";
 
 function fatal(msg) {
   console.error("[SC2 Planner] " + msg);
@@ -136,8 +135,6 @@ function syncDetails() {
   console.log("Starting app...");
 
   normalizeAll();
-  BAR_MAX_SEC = computeBarMaxSec(T, P, Z);
-  GLOBAL_CAPS = computeCapsOnce(T, P, Z);
 
   console.log("Data loaded and normalized, building UI...");
 

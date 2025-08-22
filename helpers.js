@@ -1,5 +1,8 @@
 import { T, P, Z } from "./data.js";
 
+export const GLOBAL_CAPS = computeCapsOnce(T, P, Z);
+export const BAR_MAX_SEC = computeBarMaxSec(T, P, Z);
+
 const tag2attr = (t) => {
   const map = {
     light: "light",

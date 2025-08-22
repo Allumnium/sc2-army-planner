@@ -269,54 +269,64 @@
             <summary>Army</summary>
             <div class="grid3">
               <div>
-                <label>Max army supply</label>
-                <input
-                  data-id="actualSupply"
-                  type="number"
-                  min="0"
-                  value="184"
-                />
+                <label>Supply Allocation</label>
+                <div class="inline-inputs">
+                  <label>Workers</label>
+                  <div class="small" data-id="workersLine">—</div>
+                  <label>Army</label>
+                  <input
+                    data-id="actualSupply"
+                    type="number"
+                    min="0"
+                    value="184"
+                  />
+                </div>
               </div>
               <div>
-                <label>Totals</label>
+                <label>Total Durability</label>
                 <div class="big" data-id="actualTotals">HP 0 | Armor 0.00</div>
               </div>
-            </div>
-            <div class="grid3" style="margin-top: 6px">
-              <div>
-                <label>Workers</label>
-                <div class="small" data-id="workersLine">—</div>
-              </div>
-              <div>
+              <div class="inline-inputs">
                 <label>Total Cost</label>
-                <div class="big" data-id="totalCost">—</div>
+                <div class="big" style="color: aqua" data-id="totalCostMin">
+                  —
+                </div>
+                <div
+                  class="big"
+                  style="color: chartreuse"
+                  data-id="totalCostGas"
+                >
+                  —
+                </div>
               </div>
-              <div></div>
             </div>
+
             <div data-id="analysisWrap">
               <div style="margin-top: 8px"></div>
               <div class="card" style="margin-top: 8px; background: #0c1523">
                 <div class="medium">Final Army Composition</div>
-                <div class="small muted">Time to build army</div>
-                <div class="small" data-id="timeBuild">—</div>
-                <div class="qbar" style="margin-top: 4px">
+                <div class="qbar" style="margin-top: 8px">
                   <i data-id="timeBar"></i>
+                </div>
+                <div class="inline-inputs">
+                  <div
+                    class="small muted"
+                    style="margin-top: 3px; margin-bottom: 7px"
+                  >
+                    Time to build army
+                  </div>
+                  <div class="small" data-id="timeBuild">—</div>
                 </div>
                 <div class="compList" data-id="finalComp">—</div>
               </div>
               <div class="card" style="margin-top: 8px; background: #0c1523">
-                <div class="small muted" style="margin-bottom: 4px">
+                <div class="medium" style="margin-bottom: 4px">
                   Army Qualities (per supply)
                 </div>
                 <div class="qrow">
                   <div class="qname">Tankiness</div>
                   <div class="qbar"><i data-id="qTank"></i></div>
                   <div class="qval" data-id="qTankV">0</div>
-                </div>
-                <div class="qrow">
-                  <div class="qname">Damage</div>
-                  <div class="qbar"><i data-id="qDmg"></i></div>
-                  <div class="qval" data-id="qDmgV">0</div>
                 </div>
                 <div data-id="dpsBreakTypes"></div>
                 <div class="qrow">

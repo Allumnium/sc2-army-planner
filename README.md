@@ -24,11 +24,6 @@ Plan steady-state production and visualize the army you can actually field at a 
 ## Roadmap / Ideas
 
 - save/load named presets to localStorage
-- UI improvements
-  - color the total cost text
-  - get rid of the summary text
-  - combine totals
-  - get rid of Damage metric, just DPS vs bars
 - condense the url save data and make the build name part of the URL
 - review or remove 'counterability' bars
 - add "recommended buildings" section in unit production (aka, 3x Barracks + reactor, 3 Hatcheries + injector queens)
