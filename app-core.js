@@ -16,6 +16,7 @@ import {
 
 /* =================== App factory =================== */
 export function App(rootId) {
+  console.log("Creating app for " + rootId);
   const root = document.getElementById(rootId);
   const get = (key) => root.querySelector(`[data-id="${key}"]`);
   const state = { rows: [], supAuto: true };
@@ -23,6 +24,7 @@ export function App(rootId) {
   let BAR_MAX_SEC = 15 * 60;
 
   function raceData() {
+    console.log("Getting race data");
     const r = get("race").value;
     if (r === "Terran") return { U: T, race: r };
     if (r === "Protoss") return { U: P, race: r };
@@ -30,11 +32,13 @@ export function App(rootId) {
   }
 
   function removeRow(i) {
+    console.log("Removing row at index " + i);
     state.rows.splice(i, 1);
     renderRows();
   }
 
   function updateRowCount(i, v) {
+    console.log("Updating row count at index " + i + " to " + v);
     state.rows[i].count = Math.max(0, Number(v) || 0);
     if (state.rows[i].count === 0) {
       state.rows.splice(i, 1);
@@ -43,6 +47,7 @@ export function App(rootId) {
   }
 
   function renderQualities(summary, tgt) {
+    console.log("Rendering qualities for summary and target units");
     const totalUnits = tgt.reduce((s, x) => s + x.count, 0);
     const totalSup = tgt.reduce((s, x) => s + x.sup * x.count, 0);
     const dpsPerSup = totalSup
@@ -229,6 +234,7 @@ export function App(rootId) {
   }
 
   function refreshUnitOptions() {
+    console.log("Refreshing unit options");
     const sel = get("unitSelect");
     if (!sel) return;
     const { U } = raceData();
@@ -244,6 +250,7 @@ export function App(rootId) {
   }
 
   function renderUnitEditor() {
+    console.log("Rendering unit editor");
     const wrap = get("unitEditorWrap");
     if (!wrap) return;
     const { U, race } = raceData();
@@ -356,6 +363,7 @@ export function App(rootId) {
   }
 
   function clampOrbitals() {
+    console.log("Clamping orbitals");
     const bases = Math.max(0, Number(get("bases").value) || 0);
     const orbEl = get("orbitals");
     const wrap = root.querySelector('[data-id="orbitalsWrap"]');
@@ -364,7 +372,8 @@ export function App(rootId) {
     if (Number(orbEl.value) !== v) orbEl.value = v;
   }
 
-  function spendAndDps(u, row, unitRace) {
+  function spendAndDps(u, row) {
+    console.log("Calculating spend and DPS for unit", u.name, "with row", row);
     const streams = Math.max(0, Number(row.count) || 0);
     const uptimeF = Math.max(0, Math.min(100, Number(row.uptime ?? 100))) / 100;
     const effStreams = streams * uptimeF;
@@ -392,6 +401,7 @@ export function App(rootId) {
   }
 
   function recalcSupplyCap() {
+    console.log("Recalculating supply cap");
     const bases = Math.max(0, Number(get("bases").value) || 0);
     const wpb = Math.max(0, Number(get("workersPerBase").value) || 0);
     const workersTotal = bases * wpb;
@@ -409,6 +419,7 @@ export function App(rootId) {
   }
 
   function moveRow(from, to) {
+    console.log("Moving row from", from, "to", to);
     if (
       from === to ||
       from < 0 ||
@@ -425,8 +436,9 @@ export function App(rootId) {
   }
 
   function renderRows() {
-    const { U } = raceData();
+    console.log("Rendering rows");
     const tbody = root.querySelector("[data-id='tbody']");
+    if (!tbody) return;
     tbody.innerHTML = "";
     let sumM = 0,
       sumG = 0,
@@ -437,13 +449,14 @@ export function App(rootId) {
       const info = unitLookup(r.name);
       if (!info) return;
       const { u, race } = info;
-      const spend = spendAndDps(u, r, race);
+      const spend = spendAndDps(u, r);
       sumM += spend.m;
       sumG += spend.g;
       sumStreams += Number(r.count) || 0;
       sumUptime += r.uptime ?? 100;
       if (r.cap != null) sumCap += Number(r.cap) || 0;
       const tr = document.createElement("tr");
+      if (!tr) return;
       tr.className =
         race === "Terran"
           ? "rTerran"
@@ -560,17 +573,20 @@ export function App(rootId) {
   }
 
   function satMineralsPerBase() {
+    console.log("Calculating minerals per base");
     const W = Math.max(0, Number(get("workersPerBase").value) || 0);
     const w12 = Math.min(16, W);
     const w3 = Math.max(0, Math.min(8, W - 16));
     return w12 * 40 + w3 * 20;
   }
   function satGasPerBase() {
+    console.log("Calculating gas per base");
     return (
       Number(get("geysersPerBase").value) * Number(get("gasPerGeyserMin").value)
     );
   }
   function muleIncomePerMinute() {
+    console.log("Calculating MULE income per minute");
     return (
       Number(get("orbitals").value) *
       (60 / Number(get("secTo50").value)) *
@@ -588,6 +604,7 @@ export function App(rootId) {
   };
 
   function compute() {
+    console.log("Computing resources and army");
     recalcSupplyCap();
     const bases = Number(get("bases").value) || 0;
     const mIncome = bases * satMineralsPerBase() + muleIncomePerMinute();
@@ -631,6 +648,7 @@ export function App(rootId) {
   }
 
   function computeActualArmy(scale) {
+    console.log("Computing actual army with scale", scale);
     const S = Number(get("actualSupply").value) || 0;
     const items = state.rows
       .map((r) => {
@@ -743,6 +761,7 @@ export function App(rootId) {
     }
     const compBigEl = get("finalComp");
     if (compBigEl) {
+      console.log("Rendering composition HTML");
       const compHtml = tgt
         .filter((x) => x.count > 0)
         .sort((a, b) => b.count * b.sup - a.count * a.sup)
@@ -767,7 +786,6 @@ export function App(rootId) {
     const totalUnits = tgt.reduce((s, x) => s + x.count, 0);
     const hp = tgt.reduce((s, x) => s + x.hp * x.count, 0);
     const dps = tgt.reduce((s, x) => s + x.dps * x.count, 0);
-    const dpsMax = tgt.reduce((s, x) => s + x.dpsMax * x.count, 0);
     const armorAvg = totalUnits
       ? tgt.reduce((s, x) => s + x.armor * x.count, 0) / totalUnits
       : 0;
@@ -777,9 +795,6 @@ export function App(rootId) {
       aa = tgt.some((x) => x.aa);
     const heals = tgt.some((x) => x.flags.heals);
     get("analysisWrap").style.display = tgt.length ? "" : "none";
-    get("actualSummary").innerHTML = `${totalUnits} units | ${dps.toFixed(
-      1
-    )} Avg DPS | ${dpsMax.toFixed(1)} Peak DPS`;
     get(
       "actualTotals"
     ).textContent = `HP ${hp.toLocaleString()} | Armor ${armorAvg.toFixed(2)}`;
@@ -910,6 +925,7 @@ export function App(rootId) {
 
   function populateUnitSelect(selEl, selected) {
     const { U } = raceData();
+    if (!selEl) return;
     selEl.innerHTML = "";
     if (selected && !U[selected]) {
       const info =
@@ -955,6 +971,7 @@ export function App(rootId) {
 
   return {
     getState() {
+      console.log("Getting state");
       return {
         race: get("race").value,
         bases: Number(get("bases").value) || 0,
@@ -972,6 +989,7 @@ export function App(rootId) {
       };
     },
     setState(s) {
+      console.log("Setting state:", s);
       const g = get;
       g("race").value = s.race || "Terran";
       g("bases").value = s.bases ?? 2;

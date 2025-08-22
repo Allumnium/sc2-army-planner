@@ -2,9 +2,6 @@ import { App } from "./app-core.js";
 import { normalizeAll, computeCapsOnce, computeBarMaxSec } from "./helpers.js";
 import { T, P, Z } from "./data.js"; // This is the new import statement.
 
-let GLOBAL_CAPS = null;
-let BAR_MAX_SEC = 15 * 60;
-
 function fatal(msg) {
   console.error("[SC2 Planner] " + msg);
   const main = document.getElementById("main");
@@ -18,6 +15,7 @@ function fatal(msg) {
 }
 
 function encodeState() {
+  console.log("Encoding state for URL");
   const s = {
     title: (document.getElementById("buildNameGlobal")?.value || "").trim(),
     L: L.getState(),
@@ -29,6 +27,7 @@ function encodeState() {
 }
 
 function decodeState(s) {
+  console.log("Decoding state from URL");
   try {
     const state = JSON.parse(decodeURIComponent(escape(atob(s))));
     if (state.unitData) {
@@ -41,6 +40,7 @@ function decodeState(s) {
 }
 
 function buildRight() {
+  console.log("Building right side UI");
   const left = document.getElementById("sideL");
   const right = document.getElementById("sideR");
   const toClone = Array.from(left.children).slice(1);
@@ -57,6 +57,7 @@ function buildRight() {
 }
 
 window._updateBars = function updateBars() {
+  console.log("Updating resource bars");
   if (!window.L || !window.R) return;
   function setByDenom(income, spend, denom, incEl, spEl, overEl) {
     const incPct = Math.min(income / denom, 1) * 100;
@@ -80,6 +81,7 @@ window._updateBars = function updateBars() {
 };
 
 function equalizeDetailHeights() {
+  console.log("Equalizing detail heights");
   if (document.body.classList.contains("hideR")) {
     document
       .querySelectorAll("#sideL details.card, #sideR details.card")
@@ -113,6 +115,7 @@ function equalizeDetailHeights() {
 }
 
 function syncDetails() {
+  console.log("Syncing details between sides");
   const lD = Array.from(document.querySelectorAll("#sideL details.card"));
   const rD = Array.from(document.querySelectorAll("#sideR details.card"));
   function link(a, b) {
@@ -170,6 +173,7 @@ function syncDetails() {
   }
 
   (function loadFromUrl() {
+    console.log("Loading state from URL...");
     const m = location.hash.match(/#s=([^]+)/);
     const cb = document.getElementById("toggleTeam2");
     const defaultShowR = false;
@@ -182,6 +186,7 @@ function syncDetails() {
     }
     const parsed = decodeState(m[1]);
     if (parsed && parsed.L && parsed.R) {
+      console.log("Parsed state from URL:", parsed);
       window._bootLoading = true;
       const titleEl = document.getElementById("buildNameGlobal");
       if (titleEl)
@@ -213,6 +218,7 @@ function syncDetails() {
   });
 
   if ("serviceWorker" in navigator) {
+    console.log("Registering service worker...");
     window.addEventListener("load", () => {
       navigator.serviceWorker.register("sw.js");
     });

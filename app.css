@@ -587,24 +587,6 @@ body.compact .buildName {
   white-space: nowrap;
 }
 
-[data-id="actualSummary"] {
-  font-size: 16px;
-  font-weight: 800;
-  line-height: 1.25;
-}
-[data-id="actualSummary"] .comp {
-  display: block;
-  margin-top: 2px;
-  font-size: 12px;
-  color: #cfe6ff;
-}
-body.compact [data-id="actualSummary"] {
-  font-size: 14px;
-}
-body.compact [data-id="actualSummary"] .comp {
-  font-size: 11px;
-}
-
 tbody tr.dragover {
   outline: 1px dashed #2a3b58;
 }
