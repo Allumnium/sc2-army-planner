@@ -9,6 +9,7 @@ import {
   domainDpsForUnit,
   GLOBAL_CAPS,
   BAR_MAX_SEC,
+  deriveCompByTime,
 } from "./helpers.js";
 
 /* =================== App factory =================== */
@@ -618,6 +619,7 @@ export function App(rootId) {
 
   function computeActualArmy() {
     const S = Number(get("actualSupply").value) || 0;
+
     const items = state.rows
       .map((r) => {
         const info = unitLookup(r.name);
@@ -637,8 +639,8 @@ export function App(rootId) {
         const bonusDps = normalizeBonusDpsMap(u.bonusDps || u.bonus || {});
         return {
           name: r.name,
-          rate: perMin,
-          sup: u.sup,
+          rate: perMin, // not used by the simulator, kept for UI parity
+          sup: u.sup != null ? u.sup : 1,
           hp: u.hp + u.sh,
           dpsG: dom.g,
           dpsA: dom.a,
@@ -653,9 +655,14 @@ export function App(rootId) {
           cap: r.cap ?? null,
           race,
           bonusDps,
+          raw: u,
+          streams: Math.max(0, Number(r.count) || 0),
+          uptimeF,
         };
       })
       .filter(Boolean);
+
+    // Workers label (unchanged)
     const raceNow = get("race").value;
     const basesNow = Math.max(0, Number(get("bases").value) || 0);
     const wpbNow = Math.max(0, Number(get("workersPerBase").value) || 0);
@@ -667,189 +674,330 @@ export function App(rootId) {
       workersEl.textContent = `${workerCount.toLocaleString()} ${workerLabel}${
         workerCount === 1 ? "" : "s"
       }`;
+
+    // Active race unit table (for costs later)
+    const U = raceNow === "Terran" ? T : raceNow === "Protoss" ? P : Z;
+
+    // =========================
+    //   PRODUCTION SIMULATION
+    // =========================
+    // For each unit type, build per-stream schedulers.
+    // Each stream can start one unit at a time; supply is reserved at start.
+    const unitMeta = items.map((it) => {
+      const t = Number(it.raw.t) || 0;
+      const uptimeF = Math.max(0, Math.min(1, it.uptimeF || 0));
+      // If uptimeF==0, the stream practically never makes progress -> skip those streams
+      const tEff = t > 0 && uptimeF > 0 ? t / uptimeF : Infinity;
+      const capInit =
+        it.cap == null ? Infinity : Math.max(0, Number(it.cap) || 0);
+      // Safety: prevent infinite production of 0-supply units without a cap
+      const cap = it.sup === 0 && !Number.isFinite(capInit) ? 0 : capInit;
+      return {
+        name: it.name,
+        sup: it.sup,
+        tEff,
+        streams: Math.max(0, it.streams || 0),
+        capLeft: cap,
+      };
+    });
+
+    // Build stream array: each entry is { uIdx, next } with next=available time
+    const streams = [];
+    unitMeta.forEach((u, uIdx) => {
+      if (!Number.isFinite(u.tEff) || u.tEff <= 0 || u.streams <= 0) return;
+      for (let k = 0; k < u.streams; k++) {
+        streams.push({ uIdx, next: 0 });
+      }
+    });
+
     let remainingS = S;
-    const tgt = [];
-    items.forEach((x) => {
-      if (x.cap == null) return;
-      const take = Math.min(x.cap, Math.floor(remainingS / Math.max(1, x.sup)));
-      if (take > 0) {
-        tgt.push({ ...x, count: take });
-        remainingS -= take * x.sup;
+    let lastFinish = 0;
+
+    // Quick exits
+    if (remainingS <= 0 || streams.length === 0) {
+      // fall through to UI rendering with empty tgt
+    } else {
+      // Determine a reasonable safety bound for starts to avoid infinite loops.
+      // Max possible starts = floor(S / minSup>0) + sum of caps for sup==0
+      const minSup = unitMeta
+        .filter((u) => u.sup > 0 && u.capLeft > 0)
+        .reduce((m, u) => Math.min(m, u.sup), Infinity);
+      const zeroSupCap = unitMeta
+        .filter((u) => u.sup === 0 && u.capLeft > 0)
+        .reduce((s, u) => s + (Number.isFinite(u.capLeft) ? u.capLeft : 0), 0);
+      const hardStartLimit =
+        (Number.isFinite(minSup)
+          ? Math.floor(remainingS / Math.max(1, minSup))
+          : 0) +
+        zeroSupCap +
+        10000; // generous cushion
+
+      const producedCount = new Map(unitMeta.map((u) => [u.name, 0]));
+      let startsSoFar = 0;
+      let now = 0;
+
+      // Helper: can any unit still start given remaining supply?
+      function canStartAny() {
+        for (let i = 0; i < unitMeta.length; i++) {
+          const u = unitMeta[i];
+          if (u.capLeft <= 0) continue;
+          if (!Number.isFinite(u.tEff) || u.tEff <= 0) continue;
+          if (u.streams <= 0) continue;
+          if (u.sup === 0 || remainingS >= u.sup) return true;
+        }
+        return false;
       }
-    });
-    const flex = items.filter((x) => x.cap == null);
-    const totalRate = flex.reduce((s, x) => s + x.rate, 0);
-    if (remainingS > 0 && totalRate > 0) {
-      const provisional = flex.map((x) => {
-        const idealS = remainingS * (x.rate / totalRate);
-        const cnt = Math.max(0, Math.floor(idealS / x.sup));
-        const rem = idealS / x.sup - cnt;
-        return { ...x, count: cnt, rem };
+
+      // Main loop
+      let guard = 0;
+      const GUARD_MAX = Math.max(1000, hardStartLimit * 4);
+      while (guard++ < GUARD_MAX) {
+        let startedAny = false;
+
+        // Try to start on all streams available at 'now' (round-robin by stream order)
+        for (let i = 0; i < streams.length; i++) {
+          const s = streams[i];
+          if (s.next > now) continue; // stream busy until s.next
+          const u = unitMeta[s.uIdx];
+          if (u.capLeft <= 0) continue;
+          if (!Number.isFinite(u.tEff) || u.tEff <= 0) continue;
+
+          const supNeed = u.sup || 0;
+          if (supNeed > 0 && remainingS < supNeed) continue;
+
+          // Start a unit on this stream: reserve supply immediately, decrement cap
+          u.capLeft--;
+          producedCount.set(u.name, producedCount.get(u.name) + 1);
+          if (supNeed > 0) remainingS -= supNeed;
+
+          // Schedule finish
+          const finish = now + u.tEff;
+          s.next = finish;
+          if (finish > lastFinish) lastFinish = finish;
+
+          startsSoFar++;
+          startedAny = true;
+
+          if (startsSoFar >= hardStartLimit) break;
+          if (remainingS <= 0) break;
+        }
+
+        if (remainingS <= 0 || startsSoFar >= hardStartLimit) break;
+
+        if (!startedAny) {
+          // If nothing could start now, see if starting is ever possible
+          if (!canStartAny()) break;
+
+          // Advance time to the next stream availability
+          let nextTime = Infinity;
+          for (let i = 0; i < streams.length; i++) {
+            const s = streams[i];
+            if (s.next > now && s.next < nextTime) nextTime = s.next;
+          }
+          if (!Number.isFinite(nextTime) || nextTime === Infinity) {
+            // No future finishes scheduled → dead end
+            break;
+          }
+          now = nextTime;
+        }
+      }
+
+      // Build tgt from producedCount
+      // (Note: we don't need to wait for all finishes; lastFinish has the makespan)
+      var tgtMap = new Map();
+      for (const [name, cnt] of producedCount.entries()) {
+        if (cnt > 0) tgtMap.set(name, cnt);
+      }
+
+      // Map back to items for rendering
+      const byName = new Map(items.map((it) => [it.name, it]));
+      var tgt = Array.from(tgtMap.entries())
+        .map(([name, count]) => {
+          const base = byName.get(name);
+          if (!base) return null;
+          return { ...base, count };
+        })
+        .filter(Boolean);
+
+      // =====================
+      //   UI / METRICS BELOW
+      // =====================
+
+      // Time UI (show makespan)
+      const tEl = get("timeBuild"),
+        bEl = get("timeBar");
+      if (lastFinish > 0 && Number.isFinite(lastFinish)) {
+        tEl.textContent = `${lastFinish.toFixed(1)} s`;
+        const frac = Math.max(0, Math.min(1, lastFinish / BAR_MAX_SEC));
+        bEl.style.width = (frac * 100).toFixed(0) + "%";
+      } else {
+        tEl.textContent = "—";
+        bEl.style.width = "0%";
+      }
+
+      // Final comp list
+      const compBigEl = get("finalComp");
+      if (compBigEl) {
+        const compHtml = tgt
+          .sort((a, b) => b.count * b.sup - a.count * a.sup)
+          .map(
+            (x) => `<span class="u r${x.race}">${x.name} × ${x.count}</span>`
+          )
+          .join("");
+        compBigEl.innerHTML = compHtml || "—";
+      }
+
+      // Totals / costs
+      let totalM = 0,
+        totalG = 0;
+      tgt.forEach((x) => {
+        const Ux = T[x.name] || P[x.name] || Z[x.name];
+        if (!Ux) return;
+        totalM += (Number(Ux.m) || 0) * x.count;
+        totalG += (Number(Ux.g) || 0) * x.count;
       });
-      let usedS = provisional.reduce((s, x) => s + x.count * x.sup, 0);
-      const order = provisional.slice().sort((a, b) => b.rem - a.rem);
-      while (true) {
-        const can = order.find((it) => usedS + it.sup <= remainingS);
-        if (!can) break;
-        can.count += 1;
-        usedS += can.sup;
+      const totalCostMinsEl = get("totalCostMin");
+      if (totalCostMinsEl)
+        totalCostMinsEl.textContent = `${Math.round(totalM).toLocaleString()}m`;
+      const totalCostGasEl = get("totalCostGas");
+      if (totalCostGasEl)
+        totalCostGasEl.textContent = `${Math.round(totalG).toLocaleString()}g`;
+
+      const usedS = tgt.reduce((s, x) => s + x.count * x.sup, 0);
+      const totalUnits = tgt.reduce((s, x) => s + x.count, 0);
+
+      const hp = tgt.reduce((s, x) => s + x.hp * x.count, 0);
+      const dps = tgt.reduce((s, x) => s + (x.dpsG + x.dpsA) * x.count, 0); // use G+A
+
+      const armorAvg = totalUnits
+        ? tgt.reduce((s, x) => s + x.armor * x.count, 0) / totalUnits
+        : 0;
+
+      const det = tgt.some((x) => x.flags.detector),
+        bur = tgt.some((x) => x.flags.burrow),
+        clk = tgt.some((x) => x.flags.cloak),
+        aaU = tgt.some((x) => x.aa);
+      const heals = tgt.some((x) => x.flags.heals);
+
+      get("analysisWrap").style.display = tgt.length ? "" : "none";
+      get(
+        "actualTotals"
+      ).textContent = `HP ${hp.toLocaleString()} | Armor ${armorAvg.toFixed(
+        2
+      )}`;
+
+      const costW = tgt.reduce((s, x) => s + x.costW * x.count, 0);
+      renderQualities(
+        {
+          hp,
+          sup: usedS,
+          dps,
+          armor: armorAvg,
+          flags: {
+            det,
+            bur,
+            clk,
+            aa: aaU,
+            recall: get("race").value === "Protoss",
+            scans: get("race").value === "Terran",
+            creep: get("race").value === "Zerg",
+            heals,
+          },
+          costW,
+        },
+        tgt
+      );
+
+      // Composition shares & counters (unchanged)
+      const shares = (function () {
+        const total = tgt.reduce((s, x) => s + x.count, 0) || 1;
+        let light = 0,
+          armored = 0,
+          air = 0,
+          ground = 0,
+          bio = 0,
+          mech = 0,
+          aa = 0;
+        tgt.forEach((x) => {
+          if (x.attrs.includes("light")) light += x.count;
+          if (x.attrs.includes("armored")) armored += x.count;
+          if (x.attrs.includes("air")) air += x.count;
+          if (x.attrs.includes("ground")) ground += x.count;
+          if (x.attrs.includes("bio")) bio += x.count;
+          if (x.attrs.includes("mech")) mech += x.count;
+          if (x.aa) aa += x.count;
+        });
+        const groundOnly = ground / total,
+          lowAA = 1 - aa / total;
+        return {
+          light: light / total,
+          armored: armored / total,
+          air: air / total,
+          ground: ground / total,
+          bio: bio / total,
+          mech: mech / total,
+          groundOnly,
+          lowAA,
+        };
+      })();
+
+      const g = get;
+      g("compBreak").textContent =
+        `Light ${Math.round(shares.light * 100)}% • Armored ${Math.round(
+          shares.armored * 100
+        )}% • ` +
+        `Ground ${Math.round(shares.ground * 100)}% • Air ${Math.round(
+          shares.air * 100
+        )}% • ` +
+        `Bio ${Math.round(shares.bio * 100)}% • Mech ${Math.round(
+          shares.mech * 100
+        )}%`;
+
+      const weakCats = [];
+      if (shares.light > 0.35) weakCats.push("light");
+      if (shares.armored > 0.35) weakCats.push("armored");
+      if (shares.air > 0.25) weakCats.push("air");
+      if (shares.bio > 0.35) weakCats.push("bio");
+      if (shares.mech > 0.35) weakCats.push("mech");
+      if (shares.ground > 0.75) weakCats.push("ground");
+
+      let counterList = [
+        ...new Set(weakCats.flatMap((c) => COUNTERS[c] || [])),
+      ];
+      const airHeavy = shares.air >= 0.4;
+      const groundHeavy = shares.ground >= 0.6;
+      if (airHeavy && !groundHeavy) {
+        counterList = counterList.filter(canUnitHitAir);
+      } else if (groundHeavy && !airHeavy) {
+        counterList = counterList.filter(canUnitHitGround);
+      } else {
+        counterList = counterList.filter(
+          (n) =>
+            (shares.air > 0 && canUnitHitAir(n)) ||
+            (shares.ground > 0 && canUnitHitGround(n))
+        );
       }
-      tgt.push(...provisional);
+      g("compCounters").textContent = counterList.length
+        ? counterList.join(" • ")
+        : "No obvious hard counters (composition-wise).";
+      return; // end early since we handled all UI
     }
-    function streamsFor(name) {
-      const row = state.rows.find((r) => r.name === name);
-      return Math.max(0, row ? Number(row.count) || 0 : 0);
-    }
-    function timeForUnitSec(name, count, buildSec) {
-      const s = streamsFor(name);
-      if (count <= 0 || s <= 0) return 0;
-      const effStreams = Math.max(1, Math.min(s, count));
-      return Math.ceil(count / effStreams) * buildSec;
-    }
-    let _timeBuildSec = 0;
-    tgt.forEach((x) => {
-      const Ux = T[x.name] || P[x.name] || Z[x.name];
-      if (!Ux) return;
-      const unitTime = timeForUnitSec(x.name, x.count, Number(Ux.t) || 0);
-      if (unitTime > _timeBuildSec) _timeBuildSec = unitTime;
-    });
+
+    // If we got here, there was no production possible (empty tgt); clear UI
     const tEl = get("timeBuild"),
       bEl = get("timeBar");
-    if (_timeBuildSec > 0 && Number.isFinite(_timeBuildSec)) {
-      tEl.textContent = `${_timeBuildSec.toFixed(1)} s`;
-      const frac = Math.max(0, Math.min(1, _timeBuildSec / BAR_MAX_SEC));
-      bEl.style.width = (frac * 100).toFixed(0) + "%";
-    } else {
-      tEl.textContent = "—";
-      bEl.style.width = "0%";
-    }
+    tEl.textContent = "—";
+    bEl.style.width = "0%";
     const compBigEl = get("finalComp");
-    if (compBigEl) {
-      console.log("Rendering composition HTML");
-      const compHtml = tgt
-        .filter((x) => x.count > 0)
-        .sort((a, b) => b.count * b.sup - a.count * a.sup)
-        .map((x) => `<span class="u r${x.race}">${x.name} × ${x.count}</span>`)
-        .join("");
-      compBigEl.innerHTML = compHtml || "—";
-    }
-    let totalM = 0,
-      totalG = 0;
-    tgt.forEach((x) => {
-      const Ux = T[x.name] || P[x.name] || Z[x.name];
-      if (!Ux) return;
-      totalM += (Number(Ux.m) || 0) * x.count;
-      totalG += (Number(Ux.g) || 0) * x.count;
-    });
-    const totalCostMinsEl = get("totalCostMin");
-    if (totalCostMinsEl)
-      totalCostMinsEl.textContent = `${Math.round(totalM).toLocaleString()}m`;
-    const totalCostGasEl = get("totalCostGas");
-    if (totalCostGasEl)
-      totalCostGasEl.textContent = `${Math.round(totalG).toLocaleString()}g`;
-    const usedS = tgt.reduce((s, x) => s + x.count * x.sup, 0);
-    const totalUnits = tgt.reduce((s, x) => s + x.count, 0);
-    const hp = tgt.reduce((s, x) => s + x.hp * x.count, 0);
-    const dps = tgt.reduce((s, x) => s + x.dps * x.count, 0);
-    const armorAvg = totalUnits
-      ? tgt.reduce((s, x) => s + x.armor * x.count, 0) / totalUnits
-      : 0;
-    const det = tgt.some((x) => x.flags.detector),
-      bur = tgt.some((x) => x.flags.burrow),
-      clk = tgt.some((x) => x.flags.cloak),
-      aa = tgt.some((x) => x.aa);
-    const heals = tgt.some((x) => x.flags.heals);
-    get("analysisWrap").style.display = tgt.length ? "" : "none";
-    get(
-      "actualTotals"
-    ).textContent = `HP ${hp.toLocaleString()} | Armor ${armorAvg.toFixed(2)}`;
-    const costW = tgt.reduce((s, x) => s + x.costW * x.count, 0);
-    renderQualities(
-      {
-        hp,
-        sup: usedS,
-        dps,
-        armor: armorAvg,
-        flags: {
-          det,
-          bur,
-          clk,
-          aa,
-          recall: get("race").value === "Protoss",
-          scans: get("race").value === "Terran",
-          creep: get("race").value === "Zerg",
-          heals,
-        },
-        costW,
-      },
-      tgt
-    );
-    const shares = (function () {
-      const total = tgt.reduce((s, x) => s + x.count, 0) || 1;
-      let light = 0,
-        armored = 0,
-        air = 0,
-        ground = 0,
-        bio = 0,
-        mech = 0,
-        aa = 0;
-      tgt.forEach((x) => {
-        if (x.attrs.includes("light")) light += x.count;
-        if (x.attrs.includes("armored")) armored += x.count;
-        if (x.attrs.includes("air")) air += x.count;
-        if (x.attrs.includes("ground")) ground += x.count;
-        if (x.attrs.includes("bio")) bio += x.count;
-        if (x.attrs.includes("mech")) mech += x.count;
-        if (x.aa) aa += x.count;
-      });
-      const groundOnly = ground / total,
-        lowAA = 1 - aa / total;
-      return {
-        light: light / total,
-        armored: armored / total,
-        air: air / total,
-        ground: ground / total,
-        bio: bio / total,
-        mech: mech / total,
-        groundOnly,
-        lowAA,
-      };
-    })();
-    const g = get;
-    g("compBreak").textContent =
-      `Light ${Math.round(shares.light * 100)}% • Armored ${Math.round(
-        shares.armored * 100
-      )}% • ` +
-      `Ground ${Math.round(shares.ground * 100)}% • Air ${Math.round(
-        shares.air * 100
-      )}% • ` +
-      `Bio ${Math.round(shares.bio * 100)}% • Mech ${Math.round(
-        shares.mech * 100
-      )}%`;
-    const weakCats = [];
-    if (shares.light > 0.35) weakCats.push("light");
-    if (shares.armored > 0.35) weakCats.push("armored");
-    if (shares.air > 0.25) weakCats.push("air");
-    if (shares.bio > 0.35) weakCats.push("bio");
-    if (shares.mech > 0.35) weakCats.push("mech");
-    if (shares.ground > 0.75) weakCats.push("ground");
-    let counterList = [...new Set(weakCats.flatMap((c) => COUNTERS[c] || []))];
-    const airHeavy = shares.air >= 0.4;
-    const groundHeavy = shares.ground >= 0.6;
-    if (airHeavy && !groundHeavy) {
-      counterList = counterList.filter(canUnitHitAir);
-    } else if (groundHeavy && !airHeavy) {
-      counterList = counterList.filter(canUnitHitGround);
-    } else {
-      counterList = counterList.filter(
-        (n) =>
-          (shares.air > 0 && canUnitHitAir(n)) ||
-          (shares.ground > 0 && canUnitHitGround(n))
-      );
-    }
-    g("compCounters").textContent = counterList.length
-      ? counterList.join(" • ")
-      : "No obvious hard counters (composition-wise).";
+    if (compBigEl) compBigEl.innerHTML = "—";
+    get("analysisWrap").style.display = "none";
+    get("actualTotals").textContent = "HP 0 | Armor 0.00";
+    get("totalCostMin").textContent = "0m";
+    get("totalCostGas").textContent = "0g";
+    get("compBreak").textContent =
+      "Light 0% • Armored 0% • Ground 0% • Air 0% • Bio 0% • Mech 0%";
+    get("compCounters").textContent =
+      "No obvious hard counters (composition-wise).";
   }
 
   root.querySelectorAll("input,select").forEach((el) => {

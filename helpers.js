@@ -480,3 +480,107 @@ export function domainDpsForUnit(u, name) {
   if (hasAir && hasG) return { a: total, g: total };
   return { a: 0, g: 0 };
 }
+
+/**
+ * Derive a final army composition from a fixed production window.
+ * - rows[i] is your UI row: { name, count: streams, uptime (0..100), cap? }
+ * - U is your race unit table (e.g., T/P/Z[name] -> { t: buildTimeSec, sup })
+ * - buildWindowSec is the time window to produce within (in seconds)
+ * - supplyCap (optional) trims the produced units to this total supply
+ *
+ * Returns: Array<{ name: string, count: number }>
+ */
+export function deriveCompByTime(rows, U, buildWindowSec, supplyCap = null) {
+  const clamp01 = (x) => (x < 0 ? 0 : x > 1 ? 1 : x);
+  const out = [];
+
+  // 1) Raw production: how many units can we finish in the window?
+  for (const r of rows || []) {
+    const u = U?.[r.name];
+    if (!u) continue;
+
+    const buildTime = Number(u.t) || 0; // seconds per unit
+    const sup = u.sup != null ? u.sup : 1; // supply per unit (default 1)
+    const streams = Math.max(0, Number(r.count) || 0);
+    const uptimeF = clamp01(r.uptime == null ? 1 : Number(r.uptime) / 100);
+
+    if (buildTime <= 0 || streams <= 0 || uptimeF <= 0) {
+      out.push({ name: r.name, count: 0, sup });
+      continue;
+    }
+
+    // Effective parallelism over the whole window (allows fractional uptime)
+    const effStreams = streams * uptimeF;
+
+    // Units finished = floor( window / t * effStreams )
+    // (This treats uptime as a time-averaged parallelism factor.)
+    const produced = Math.floor(
+      (buildWindowSec / buildTime) * effStreams + 1e-9
+    );
+
+    // Respect row cap if present
+    const cap = r.cap == null ? Infinity : Math.max(0, Number(r.cap) || 0);
+    const finalCount = Math.min(produced, cap);
+
+    out.push({ name: r.name, count: finalCount, sup });
+  }
+
+  // If no supply cap, strip the helper fields and return
+  if (supplyCap == null) {
+    return out.map(({ name, count }) => ({ name, count }));
+  }
+
+  // 2) If supply-limited, proportionally scale down and then greedily re-add by remainder
+  //    (supply-0 units are kept as-is; they don't consume supply).
+  let totalSup = 0;
+  for (const it of out) {
+    if ((it.sup || 0) > 0) totalSup += it.count * it.sup;
+  }
+  if (totalSup <= supplyCap) {
+    // Already within cap
+    return out.map(({ name, count }) => ({ name, count }));
+  }
+
+  // Proportional downscale (base = floor(count * f)), keep supply-0 unchanged
+  const f = supplyCap / Math.max(1, totalSup);
+  const scaled = out.map((it) => {
+    if ((it.sup || 0) === 0) {
+      return { ...it, base: it.count, frac: 0, maxAdd: 0 }; // unaffected by cap
+    }
+    const raw = it.count * f;
+    const base = Math.min(Math.floor(raw), it.count);
+    const frac = raw - base;
+    const maxAdd = it.count - base; // how many we could still add back without exceeding original/cap
+    return { ...it, base, frac, maxAdd };
+  });
+
+  // Compute supply used by base counts
+  let usedSup = 0;
+  for (const it of scaled) {
+    if ((it.sup || 0) > 0) usedSup += it.base * it.sup;
+  }
+  let leftSup = Math.max(0, supplyCap - usedSup);
+
+  // Greedy fill leftover supply by largest fractional remainder per supply
+  // (units with larger frac and smaller sup get priority)
+  const order = scaled
+    .filter((it) => (it.sup || 0) > 0 && it.maxAdd > 0)
+    .sort((a, b) => {
+      const aKey = a.frac / (a.sup || 1);
+      const bKey = b.frac / (b.sup || 1);
+      return bKey - aKey;
+    });
+
+  for (const it of order) {
+    if (leftSup <= 0) break;
+    const sup = it.sup || 1;
+    // How many of this unit can we add within leftSup and without exceeding original produced count?
+    const canAdd = Math.min(it.maxAdd, Math.floor(leftSup / sup));
+    if (canAdd > 0) {
+      it.base += canAdd;
+      leftSup -= canAdd * sup;
+    }
+  }
+
+  return scaled.map(({ name, base }) => ({ name, count: base }));
+}

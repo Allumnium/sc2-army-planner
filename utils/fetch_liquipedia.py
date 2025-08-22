@@ -452,15 +452,19 @@ def apply_overrides(groups):
         b["dpsMax"] = 8.0
         b.setdefault("bonusDps", {})["light"] = 19.0
         b["pref"] = ["light"]
+        b["t"] = 31.0  # zergling + morph time
     if "Ravager" in Z:
         r = Z["Ravager"]
         r["sup"] = 3
+        r["t"] = 31.0  # roach + morph time
     if "Brood Lord" in Z:
         r = Z["Brood Lord"]
         r["sup"] = 4
+        r["t"] = 54.0  # corruptor + morph time
     if "Lurker" in Z:
         r = Z["Lurker"]
         r["sup"] = 3
+        r["t"] = 42.0  # hydralisk + morph time
     T = groups["T"]
     if "Widow Mine" in T:
         wm = T["Widow Mine"]
@@ -475,6 +479,7 @@ def apply_overrides(groups):
         a = P["Archon"]
         a["m"] = 100
         a["g"] = 300
+        a["t"] = 47.0  # templar + morph time
 
 
 def apply_splash_multiplier(groups):
