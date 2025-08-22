@@ -1,4 +1,4 @@
-# SC2 Economy & Army Planner — Dual
+# SC2 Economy & Army Planner
 
 Plan steady-state production and visualize the army you can actually field at a given income. Compare two teams side-by-side, tune upgrades/parameters, and share a prefilled build as a URL.
 
