@@ -452,6 +452,9 @@ def apply_overrides(groups):
         b["dpsMax"] = 8.0
         b.setdefault("bonusDps", {})["light"] = 19.0
         b["pref"] = ["light"]
+    if "Ravager" in Z:
+        r = Z["Ravager"]
+        r["sup"] = 3
     T = groups["T"]
     if "Widow Mine" in T:
         wm = T["Widow Mine"]

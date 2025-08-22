@@ -1032,7 +1032,7 @@ export const Z = {
     "micro": 3
   },
   "Ravager": {
-    "sup": 1.0,
+    "sup": 3,
     "m": 100.0,
     "g": 100.0,
     "t": 12.0,
