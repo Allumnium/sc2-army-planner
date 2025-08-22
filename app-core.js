@@ -205,7 +205,7 @@ export function App(rootId) {
       } else {
         host.innerHTML = entries
           .map(([k, vPS]) => {
-            const label = "Avg DPS vs  " + k[0].toUpperCase() + k.slice(1);
+            const label = "DPS vs  " + k[0].toUpperCase() + k.slice(1);
             const pct = clamp01(vPS / Math.max(1e-6, caps.dpsPerSup)) * 100;
             return `
             <div class="qrow">
