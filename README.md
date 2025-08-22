@@ -23,8 +23,9 @@ Plan steady-state production and visualize the army you can actually field at a 
 
 ## Roadmap / Ideas
 
-- save/load named presets to localStorage
-- review or remove 'counterability' bars
+- review 'counterability' bars
+- add damage bar specifically for splash damage instead of approximating into dps bars
+- add damage bar for ability damage
 - add "recommended buildings" section in unit production (aka, 3x Barracks + reactor, 3 Hatcheries + injector queens)
 
 ---
