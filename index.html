@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <!-- Core meta -->
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>SC2 Economy & Army Planner — Dual</title>
@@ -13,8 +12,6 @@
       rel="canonical"
       href="https://allumnium.github.io/sc2-army-planner/"
     />
-
-    <!-- Social sharing -->
     <meta property="og:title" content="SC2 Economy & Army Planner — Dual" />
     <meta
       property="og:description"
@@ -36,8 +33,6 @@
     />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-
-    <!-- PWA -->
     <link rel="manifest" href="manifest.json" />
     <meta name="theme-color" content="#0b0f14" />
     <link
@@ -47,26 +42,13 @@
       href="icons/favicon-32.png"
     />
     <link rel="apple-touch-icon" href="icons/icon-192.png" />
-
-    <!-- Security (CSP) -->
-    <!-- We can drop 'unsafe-inline' for scripts now; keep it for styles due to inline style="" usage -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self';
-               script-src 'self';
-               style-src 'self' 'unsafe-inline';
-               img-src 'self' https: data:;
-               connect-src 'self';
-               object-src 'none';
-               base-uri 'self';
-               frame-ancestors 'none';"
+      content="default-src 'self';script-src 'self';style-src 'self' 'unsafe-inline';img-src 'self' https: data:;connect-src 'self';object-src 'none';base-uri 'self';frame-ancestors 'none';"
     />
-
-    <!-- External CSS -->
     <link rel="stylesheet" href="app.css" />
   </head>
-
-  <body>
+  <body class="hideR">
     <header>
       <div class="hrow">
         <div class="hleft">
@@ -102,13 +84,11 @@
         </div>
       </div>
     </header>
-
     <noscript>
       <div class="wrap">
         <div class="card">This app requires JavaScript to run.</div>
       </div>
     </noscript>
-
     <main class="wrap" id="main">
       <div class="card" style="margin-bottom: 10px">
         <div class="row" style="justify-content: space-between">
@@ -123,21 +103,16 @@
           <input type="checkbox" id="toggleTeam2" /> Show Team 2
         </label>
       </div>
-
       <div class="dual">
         <!-- LEFT APP -->
         <div class="side" id="sideL" aria-label="Team 1">
-          <div class="sideHeader">
-            <h3 class="sideTitle">Team 1</h3>
-          </div>
-
-          <!-- INCOME -->
+          <div class="sideHeader"><h3 class="sideTitle">Team 1</h3></div>
           <details open class="card">
             <summary>Income</summary>
             <div class="inline-inputs">
               <div>
-                <label for="l-bases"># Bases</label>
-                <input
+                <label for="l-bases"># Bases</label
+                ><input
                   id="l-bases"
                   data-id="bases"
                   type="number"
@@ -146,8 +121,8 @@
                 />
               </div>
               <div data-id="orbitalsWrap">
-                <label for="l-orbitals">Orbital Commands (MULE spawners)</label>
-                <input
+                <label for="l-orbitals">Orbital Commands (MULE spawners)</label
+                ><input
                   id="l-orbitals"
                   data-id="orbitals"
                   type="number"
@@ -156,8 +131,8 @@
                 />
               </div>
               <div>
-                <label for="l-resM">Reserve m/min (tech)</label>
-                <input
+                <label for="l-resM">Reserve m/min (tech)</label
+                ><input
                   id="l-resM"
                   data-id="resM"
                   type="number"
@@ -167,8 +142,8 @@
                 />
               </div>
               <div>
-                <label for="l-resG">Reserve g/min (tech)</label>
-                <input
+                <label for="l-resG">Reserve g/min (tech)</label
+                ><input
                   id="l-resG"
                   data-id="resG"
                   type="number"
@@ -191,7 +166,6 @@
                       <div class="spendM" data-id="barMinSp"></div>
                       <div class="overflow" data-id="barMinOver"></div>
                     </div>
-
                     <span class="small muted">income</span>
                     <span data-id="numMinInc">0m</span>
                   </div>
@@ -203,7 +177,6 @@
                     <span data-id="numMinTech">0m</span>
                   </div>
                 </div>
-
                 <div class="resource-row" style="margin-top: 6px">
                   <div class="small muted">Gas</div>
                   <div class="bar-wrap">
@@ -229,10 +202,8 @@
               </div>
             </div>
           </details>
-
-          <!-- UNITS -->
           <details open class="card">
-            <summary>Units</summary>
+            <summary>Production</summary>
             <div class="row">
               <div>
                 <label for="l-race">Race</label>
@@ -243,7 +214,6 @@
                 </select>
               </div>
             </div>
-
             <div data-id="unitTableWrap">
               <table>
                 <thead data-id="thead">
@@ -296,14 +266,12 @@
               </table>
             </div>
           </details>
-
-          <!-- ARMY -->
           <details open class="card">
             <summary>Army</summary>
             <div class="grid3">
               <div>
-                <label>Max army supply</label
-                ><input
+                <label>Max army supply</label>
+                <input
                   data-id="actualSupply"
                   type="number"
                   min="0"
@@ -357,7 +325,6 @@
                   <div class="qbar"><i data-id="qDmg"></i></div>
                   <div class="qval" data-id="qDmgV">0</div>
                 </div>
-                <!-- Per-supply, inlined in the Army card -->
                 <div data-id="dpsBreakTypes"></div>
                 <div class="qrow">
                   <div class="qname">Utility</div>
@@ -392,18 +359,17 @@
               </div>
               <div>
                 <!-- <div class="small muted">Abilities</div> -->
-                <!-- <div class="row" style="margin-top: 4px">
-                  <span class="pill" data-id="aDetector">Detector: no</span>
-                  <span class="pill" data-id="aBurrow">Burrow: no</span>
-                  <span class="pill" data-id="aCloak">Cloak: no</span>
-                  <span class="pill" data-id="aAA">Anti-air: no</span>
-                  <span class="pill" data-id="aRecall">Recall: no</span>
-                  <span class="pill" data-id="aScan">Scans: no</span>
-                  <span class="pill" data-id="aCreep">Creep: no</span>
-                  <span class="pill" data-id="aHeals">Heals: no</span>
-                </div> -->
+                <!-- <div class="row" style="margin-top:4px">
+                <span class="pill" data-id="aDetector">Detector: no</span>
+                <span class="pill" data-id="aBurrow">Burrow: no</span>
+                <span class="pill" data-id="aCloak">Cloak: no</span>
+                <span class="pill" data-id="aAA">Anti-air: no</span>
+                <span class="pill" data-id="aRecall">Recall: no</span>
+                <span class="pill" data-id="aScan">Scans: no</span>
+                <span class="pill" data-id="aCreep">Creep: no</span>
+                <span class="pill" data-id="aHeals">Heals: no</span>
+              </div> -->
               </div>
-
               <div
                 class="small muted"
                 data-id="actualList"
@@ -411,8 +377,6 @@
               ></div>
             </div>
           </details>
-
-          <!-- PARAMETERS -->
           <details class="card">
             <summary>Parameters</summary>
             <div class="small">
@@ -497,7 +461,6 @@
             </div>
           </details>
         </div>
-
         <!-- RIGHT APP -->
         <div class="side" id="sideR" aria-label="Team 2">
           <div class="sideHeader"><h3 class="sideTitle">Team 2</h3></div>
@@ -505,7 +468,6 @@
         </div>
       </div>
     </main>
-
     <footer class="small">
       <div>
         v0.1.0 · <a href="privacy.html">Privacy</a> ·
@@ -530,8 +492,6 @@
         Blizzard.
       </div>
     </footer>
-
-    <!-- External JS -->
     <script src="app.js" defer></script>
   </body>
 </html>

@@ -11,16 +11,26 @@
   --warn: #ffd166;
   --gasDark: #0d4020;
   --gas: #1d8a3d;
+  --qTank: #60a5fa;
+  --qDmg: #ef4444;
+  --qDmgAlt: #f87171;
+  --qUtil: #22d3ee;
+  --qMicro: #c084fc;
+  --qVuln: #fbbf24;
+  --qCost: #34d399;
 }
+
 * {
   box-sizing: border-box;
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, sans-serif;
 }
+
 body {
   margin: 0;
   background: var(--bg);
   color: var(--ink);
 }
+
 header {
   position: sticky;
   top: 0;
@@ -29,6 +39,7 @@ header {
   border-bottom: 1px solid var(--line);
   padding: 8px 16px 8px 10px;
 }
+
 .hrow {
   display: flex;
   gap: 10px;
@@ -37,20 +48,23 @@ header {
   flex-wrap: wrap;
   padding-right: 16px;
 }
-.hleft {
+
+.hleft,
+.hright {
   display: flex;
   align-items: center;
   gap: 12px;
 }
+
 .hright {
-  display: flex;
   gap: 8px;
-  align-items: center;
 }
+
 h1 {
   margin: 0;
   font-size: 16px;
 }
+
 a {
   color: var(--accentLight);
   text-decoration: none;
@@ -58,6 +72,7 @@ a {
 a:hover {
   text-decoration: underline;
 }
+
 button {
   background: var(--accent);
   color: #001528;
@@ -72,32 +87,42 @@ button {
   border: 1px solid #2a3b58;
   color: var(--ink);
 }
+
 .wrap {
   padding: 10px;
 }
+
 .dual {
   display: grid;
   gap: 10px;
+  align-items: start;
 }
 @media (min-width: 950px) {
   .dual {
     grid-template-columns: 1fr 1fr;
   }
 }
+
 .side {
   display: grid;
   gap: 10px;
 }
+.side > .card {
+  margin: 0;
+}
+
 .card {
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: 10px;
   padding: 10px;
 }
+
 .sideTitle {
   font-weight: 800;
   margin: 0 0 6px 0;
 }
+
 details {
   background: #0e1623;
   border: 1px solid var(--line);
@@ -108,16 +133,17 @@ details > summary {
   cursor: pointer;
   font-weight: 700;
   margin: -6px;
-  -webkit-margin-before: -6px;
   list-style: none;
   padding: 6px;
 }
+
 .row {
   display: flex;
   gap: 8px;
   align-items: center;
   flex-wrap: wrap;
 }
+
 .grid2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -133,10 +159,12 @@ details > summary {
   grid-template-columns: repeat(4, 1fr);
   gap: 8px;
 }
+
 label {
   font-size: 12px;
   color: var(--muted);
 }
+
 input[type="number"],
 select {
   background: #0a111a;
@@ -146,6 +174,7 @@ select {
   padding: 6px 8px;
   font-size: 14px;
 }
+
 table {
   width: 100%;
   border-collapse: collapse;
@@ -197,19 +226,12 @@ th {
   cursor: help;
 }
 
-:root {
-  --qTank: #60a5fa;
-  --qDmg: #fb7185;
-  --qUtil: #22d3ee;
-  --qMicro: #c084fc;
-  --qVuln: #fbbf24;
-  --qCost: #34d399;
-}
+/* Quality bars */
 .qbar > i[data-id="qTank"] {
   background: var(--qTank);
 }
 .qbar > i[data-id="qDmg"] {
-  background: var(--qDmg);
+  background: linear-gradient(90deg, var(--qDmg), var(--qDmgAlt));
 }
 .qbar > i[data-id="qUtil"] {
   background: var(--qUtil);
@@ -223,48 +245,40 @@ th {
 .qbar > i[data-id="qCost"] {
   background: var(--qCost);
 }
+
 /* DPS breakdown uses red shades by type */
 .qbar > i[data-type="ground"],
 .qbar > i[data-type="all"] {
   background: #ef4444;
-} /* strong red */
+}
 .qbar > i[data-type="air"] {
   background: #f87171;
-} /* light red */
+}
 .qbar > i[data-type="armored"] {
   background: #dc2626;
-} /* deep red */
+}
 .qbar > i[data-type="light"] {
   background: #fca5a5;
-} /* pale red */
+}
 .qbar > i[data-type="bio"] {
   background: #fb7185;
-} /* pink-red */
+}
 .qbar > i[data-type="mech"] {
   background: #f43f5e;
-} /* rose red */
+}
 .qbar > i[data-type="massive"] {
   background: #be123c;
-} /* wine red */
+}
 .qbar > i[data-type="psionic"] {
   background: #e11d48;
-} /* vivid red */
+}
 .qbar > i[data-type="structure"] {
   background: #991b1b;
-} /* brick red */
+}
 .qbar > i[data-type="clumps"] {
   background: #ff4d4d;
-} /* splash red */
+}
 
-:root {
-  --qDmg: #ef4444; /* red-500 */
-  --qDmgAlt: #f87171; /* red-400 */
-}
-/* Quality: Damage */
-.qbar > i[data-id="qDmg"] {
-  background: linear-gradient(90deg, var(--qDmg), var(--qDmgAlt));
-}
-/* DPS breakdown bars */
 [data-id="dpsBreakTypes"] .qbar > i,
 [data-id="dpsBreak"] .qbar > i {
   background: linear-gradient(90deg, var(--qDmg), var(--qDmgAlt));
@@ -325,7 +339,6 @@ body.compact .compList {
   bottom: 0;
   height: 100%;
 }
-
 .bar .incomeM {
   background: #173154;
 }
@@ -338,7 +351,6 @@ body.compact .compList {
 .bar .spendG {
   background: linear-gradient(90deg, #5adb7c, var(--gas));
 }
-
 .bar .overflow {
   background: var(--danger);
   opacity: 0.85;
@@ -402,15 +414,16 @@ body.compact .compList {
   justify-content: space-between;
   margin: -2px 0 4px 0;
 }
+
 /* Keep the unit editor within the panel width */
 .unitEditor {
   display: block;
-  overflow-x: auto; /* allow horizontal scroll inside the card */
+  overflow-x: auto;
   max-width: 100%;
 }
 .unitEditor table {
-  width: max-content; /* fit columns naturally */
-  min-width: 100%; /* but never smaller than the panel */
+  width: max-content;
+  min-width: 100%;
   border-collapse: collapse;
 }
 .unitEditor th,
@@ -418,7 +431,7 @@ body.compact .compList {
   white-space: nowrap;
 }
 .unitEditor input {
-  width: 70px; /* compact controls */
+  width: 70px;
   max-width: 100%;
 }
 tr.rTerran {
@@ -429,12 +442,6 @@ tr.rProtoss {
 }
 tr.rZerg {
   background: rgba(180, 90, 210, 0.12);
-}
-.dual {
-  align-items: start;
-}
-.side > .card {
-  margin: 0;
 }
 
 /* Compact mode */
@@ -577,7 +584,7 @@ body.compact .buildName {
   text-align: right;
   font-size: 0.9em;
   font-variant-numeric: tabular-nums;
-  white-space: nowrap; /* will wrap naturally if space gets too tight after removal */
+  white-space: nowrap;
 }
 
 [data-id="actualSummary"] {
@@ -619,6 +626,7 @@ footer .sub {
   opacity: 0.8;
 }
 
+/* Hide Team 2 by default until JS decides to show it */
 body.hideR #sideR {
   display: none;
 }

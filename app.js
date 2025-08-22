@@ -266,12 +266,6 @@ function computeCapsOnce() {
     });
   });
 
-  console.log("[SC2 Planner] Caps (per-supply):", {
-    dpsPerSupMax,
-    hpPerSupMax,
-    costPerSupMax,
-  });
-
   return {
     dpsPerSup: dpsPerSupMax,
     hpPerSup: hpPerSupMax,
@@ -1758,19 +1752,25 @@ function syncDetails() {
       title: (document.getElementById("buildNameGlobal")?.value || "").trim(),
       L: L.getState(),
       R: R.getState(),
+      unitData: window.unitData || {},
       showR: !document.body.classList.contains("hideR"),
     };
     return btoa(unescape(encodeURIComponent(JSON.stringify(s))));
   }
   function decodeState(s) {
     try {
-      return JSON.parse(decodeURIComponent(escape(atob(s))));
+      const state = JSON.parse(decodeURIComponent(escape(atob(s))));
+      if (state.unitData) {
+        window.unitData = state.unitData;
+      }
+      return state;
     } catch {
       return null;
     }
   }
   window._saveState = function () {
     const b = encodeState();
+    console.log("Saving state to URL:", b);
     history.replaceState(null, "", "#s=" + b);
   };
 
@@ -1790,14 +1790,21 @@ function syncDetails() {
     });
   }
 
-  // Load from URL (fixed showR logic)
+  const titleEl = document.getElementById("buildNameGlobal");
+  if (titleEl) {
+    console.log("Title input found, enabling title save/load.");
+    titleEl.addEventListener("input", window._saveState());
+    titleEl.addEventListener("change", window._saveState());
+  }
   (function loadFromUrl() {
     const m = location.hash.match(/#s=([^]+)/);
     const cb = document.getElementById("toggleTeam2");
-    const defaultShowR = !!cb?.checked;
+    const defaultShowR = false;
 
     if (!m) {
+      // No state in URL: default to hideR = true (Team 2 hidden)
       document.body.classList.toggle("hideR", !defaultShowR);
+      if (cb) cb.checked = defaultShowR;
       if (window._updateBars) window._updateBars();
       window._saveState();
       return;
@@ -1812,7 +1819,8 @@ function syncDetails() {
         titleEl.value =
           parsed.title || parsed?.L?.name || parsed?.R?.name || "";
 
-      const showR = parsed.showR === true; // ✅ respect saved value
+      // Use parsed.showR if present, otherwise default to false
+      const showR = typeof parsed.showR === "boolean" ? parsed.showR : false;
       document.body.classList.toggle("hideR", !showR);
       if (cb) cb.checked = showR;
 
@@ -1825,6 +1833,7 @@ function syncDetails() {
     }
 
     document.body.classList.toggle("hideR", !defaultShowR);
+    if (cb) cb.checked = defaultShowR;
     if (window._updateBars) window._updateBars();
     window._saveState();
   })();
