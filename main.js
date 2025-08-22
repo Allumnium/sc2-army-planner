@@ -120,7 +120,7 @@ function syncDetails() {
   window._saveState = function () {
     const b = encodeState();
     console.log("Saving state to URL:", b);
-    history.replaceState(null, "", b);
+    history.replaceState(null, "", "#" + b);
   };
 
   if (window._updateBars) window._updateBars();
@@ -146,7 +146,7 @@ function syncDetails() {
 
   (function loadFromUrl() {
     console.log("Loading state from URL...");
-    const m = location.hash.match(/([^]+)/);
+    const m = location.hash.match(/#([^]+)/);
     const cb = document.getElementById("toggleTeam2");
     const defaultShowR = false;
     if (!m) {
